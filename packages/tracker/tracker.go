@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-func Track() error {
+func Track(serviceName string) error {
 	handler := metrics.Tracer{}
-	err := handler.Init()
+	err := handler.Init(serviceName)
 	if err != nil {
 		log.Fatalf("failed to create the collector exporter: %v", err)
 	}

@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/resource"
 	"log"
 	"os"
 	"runtime"
@@ -19,17 +21,18 @@ import (
 
 var (
 	collectorURL = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	meltAPIKey   = os.Getenv("MELT_API_KEY")
 )
 
 type ClientInterface interface {
-	Init() error
+	Init(serviceName string) error
 	CollectMetrics()
 	createMetric(name string, value float64)
 }
 
 type Tracer struct{}
 
-func (t *Tracer) Init() error {
+func (t *Tracer) Init(serviceName string) error {
 	client := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithEndpoint(collectorURL),
@@ -46,6 +49,15 @@ func (t *Tracer) Init() error {
 			otel.Handle(err)
 		}
 	}()
+	resources, err := resource.New(
+		context.Background(),
+		resource.WithAttributes(
+			attribute.String("service.name", serviceName),
+			attribute.String("library.language", "go"),
+			attribute.Bool("mw_agent", true),
+			attribute.String("mw.account_key", meltAPIKey),
+		),
+	)
 	pusher := controller.New(
 		processor.NewFactory(
 			simple.NewWithHistogramDistribution(),
@@ -53,6 +65,7 @@ func (t *Tracer) Init() error {
 		),
 		controller.WithExporter(exp),
 		controller.WithCollectPeriod(2*time.Second),
+		controller.WithResource(resources),
 	)
 
 	global.SetMeterProvider(pusher)

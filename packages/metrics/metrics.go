@@ -21,7 +21,7 @@ import (
 
 var (
 	collectorURL = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	meltAPIKey   = os.Getenv("MELT_API_KEY")
+	mwAPIKey     = os.Getenv("MW_API_KEY")
 )
 
 type ClientInterface interface {
@@ -55,7 +55,7 @@ func (t *Tracer) Init(serviceName string) error {
 			attribute.String("service.name", serviceName),
 			attribute.String("library.language", "go"),
 			attribute.Bool("mw_agent", true),
-			attribute.String("mw.account_key", meltAPIKey),
+			attribute.String("mw.account_key", mwAPIKey),
 		),
 	)
 	pusher := controller.New(

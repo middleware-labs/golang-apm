@@ -2,26 +2,20 @@ package metrics
 
 import (
 	"context"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/metric/global"
+	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"log"
 	"os"
 	"runtime"
 	"time"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/metric/global"
-	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
-
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
 	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
-)
-
-var (
-	collectorURL = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	mwAPIKey     = os.Getenv("MW_API_KEY")
 )
 
 type ClientInterface interface {
@@ -33,6 +27,11 @@ type ClientInterface interface {
 type Tracer struct{}
 
 func (t *Tracer) Init(serviceName string) error {
+	var (
+		collectorURL = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+		mwAPIKey     = os.Getenv("MW_API_KEY")
+	)
+
 	client := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithEndpoint(collectorURL),
@@ -40,8 +39,10 @@ func (t *Tracer) Init(serviceName string) error {
 	ctx := context.Background()
 	exp, err := otlpmetric.New(ctx, client)
 	if err != nil {
+		log.Fatalf("failed to create the collector exporter: %v", err)
 		return err
 	}
+
 	defer func() {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
 		defer cancel()
@@ -71,8 +72,8 @@ func (t *Tracer) Init(serviceName string) error {
 	global.SetMeterProvider(pusher)
 
 	if err := pusher.Start(ctx); err != nil {
+		log.Fatalf("could not start metric controller: %v", err)
 		return err
-		// log.Fatalf("could not start metric controller: %v", err)
 	}
 	defer func() {
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
@@ -81,6 +82,15 @@ func (t *Tracer) Init(serviceName string) error {
 			otel.Handle(err)
 		}
 	}()
+
+	tick := time.NewTicker(1 * time.Second)
+	defer tick.Stop()
+	for {
+		select {
+		case <-tick.C:
+			t.CollectMetrics()
+		}
+	}
 	return nil
 }
 
@@ -108,4 +118,5 @@ func (t *Tracer) createMetric(name string, value float64) {
 		log.Fatalf("Failed to create the instrument: %v", err)
 	}
 	counter.Add(ctx, value)
+	log.Printf("Done!")
 }

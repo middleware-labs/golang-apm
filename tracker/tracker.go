@@ -1,9 +1,8 @@
 package tracker
 
 import (
-	"github.com/middleware-labs/golang-apm/packages/metrics"
+	"github.com/middleware-labs/golang-apm/tracker/metrics"
 	"log"
-	"time"
 )
 
 func Track(serviceName string) error {
@@ -11,14 +10,6 @@ func Track(serviceName string) error {
 	err := handler.Init(serviceName)
 	if err != nil {
 		log.Fatalf("failed to create the collector exporter: %v", err)
-	}
-	tick := time.NewTicker(1 * time.Second)
-	defer tick.Stop()
-	for {
-		select {
-		case <-tick.C:
-			handler.CollectMetrics()
-		}
 	}
 	return nil
 }

@@ -1,15 +1,13 @@
 package tracker
 
 import (
-	"context"
 	"log"
 )
 
 func Track(opts ...Options) error {
 	c := newConfig(opts...)
 	if c.pauseTraces == false {
-		cleanup := initTracer(c)
-		defer cleanup(context.Background())
+		initTracer(c)
 	}
 	if c.pauseMetrics == false {
 		handler := Tracer{}

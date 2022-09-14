@@ -1,4 +1,4 @@
-package metrics
+package tracker
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"log"
-	"os"
 	"runtime"
 	"time"
 
@@ -26,15 +25,10 @@ type ClientInterface interface {
 
 type Tracer struct{}
 
-func (t *Tracer) Init(serviceName string) error {
-	var (
-		collectorURL = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-		mwAPIKey     = os.Getenv("MW_API_KEY")
-	)
-
+func (t *Tracer) init(c *config) error {
 	client := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithEndpoint(collectorURL),
+		otlpmetricgrpc.WithEndpoint(c.host),
 	)
 	ctx := context.Background()
 	exp, err := otlpmetric.New(ctx, client)
@@ -53,10 +47,11 @@ func (t *Tracer) Init(serviceName string) error {
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
-			attribute.String("service.name", serviceName),
+			attribute.String("service.name", c.serviceName),
 			attribute.String("library.language", "go"),
 			attribute.Bool("mw_agent", true),
-			attribute.String("mw.account_key", mwAPIKey),
+			attribute.String("mw.account_key", c.apiKey),
+			attribute.String("project.name", c.projectName),
 		),
 	)
 	pusher := controller.New(
@@ -88,13 +83,13 @@ func (t *Tracer) Init(serviceName string) error {
 	for {
 		select {
 		case <-tick.C:
-			t.CollectMetrics()
+			t.collectMetrics()
 		}
 	}
 	return nil
 }
 
-func (t *Tracer) CollectMetrics() {
+func (t *Tracer) collectMetrics() {
 	var ms runtime.MemStats
 
 	t.createMetric("num_cpu", float64(runtime.NumCPU()))

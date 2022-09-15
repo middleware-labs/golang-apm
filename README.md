@@ -8,11 +8,17 @@ go get github.com/middleware-labs/golang-apm
 ```golang
 
 import (
-	t "github.com/middleware-labs/golang-apm/packages/tracker"
+	track "github.com/middleware-labs/golang-apm/tracker"
 )
 
 func main() {
-	t.Track()
+	track.Track(
+		track.WithConfigTag("service", "service1"),
+		track.WithConfigTag("host", "localhost:4320"),
+		track.WithConfigTag("projectName", "demo-agent-apm"),
+		track.WithConfigTag("pauseMetrics", false),
+		track.WithConfigTag("pauseTraces", false),
+	)
 }
 
 

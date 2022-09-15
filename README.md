@@ -1,7 +1,5 @@
 # golang-apm
 
-~~~~# middleware-labs/golang-apm
-
 go get github.com/middleware-labs/golang-apm
 
 
@@ -20,6 +18,3 @@ func main() {
 		track.WithConfigTag("pauseTraces", false),
 	)
 }
-
-
-```

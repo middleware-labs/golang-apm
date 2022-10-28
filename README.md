@@ -12,8 +12,8 @@ import (
 
 func main() {
 	track.Track(
-		track.WithConfigTag("service", "service1"),
-		track.WithConfigTag("projectName", "demo-agent-apm"),
+		track.WithConfigTag("service", "your service name"),
+		track.WithConfigTag("projectName", "your project name"),
 	)
 	
 	logger.Error("Error")

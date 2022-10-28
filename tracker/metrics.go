@@ -112,5 +112,4 @@ func (t *Tracer) createMetric(name string, value float64) {
 		log.Fatalf("Failed to create the instrument: %v", err)
 	}
 	counter.Add(ctx, value)
-	log.Printf("Done!")
 }

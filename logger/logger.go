@@ -2,12 +2,22 @@ package logger
 
 import (
 	"github.com/fluent/fluent-logger-golang/fluent"
+	"os"
 )
 
 var (
-	logger, _ = fluent.New(fluent.Config{FluentPort: 8006, FluentHost: "localhost"})
+	host      = getEnv("MW_AGENT_SERVICE", "localhost")
+	logger, _ = fluent.New(fluent.Config{FluentPort: 8006, FluentHost: host})
 	tag       = "go.app"
 )
+
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return defaultValue
+	}
+	return value
+}
 
 func Error(message string) {
 	var data = map[string]string{

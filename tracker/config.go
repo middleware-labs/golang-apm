@@ -61,15 +61,9 @@ func newConfig(opts ...Options) *config {
 			c.serviceName = "Service-" + pid
 		}
 	}
-	if c.host == "" {
-		if v, ok := c.settings["host"]; ok {
-			if s, ok := v.(string); ok {
-				c.host = s
-			}
-		} else {
-			c.host = "localhost:4320"
-		}
-	}
+
+	c.host = getEnv("MW_AGENT_SERVICE", "localhost:4320")
+
 	if c.projectName == "" {
 		if v, ok := c.settings["projectName"]; ok {
 			if s, ok := v.(string); ok {
@@ -80,4 +74,12 @@ func newConfig(opts ...Options) *config {
 		}
 	}
 	return c
+}
+
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return defaultValue
+	}
+	return value
 }

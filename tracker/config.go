@@ -2,7 +2,7 @@ package tracker
 
 import (
 	"os"
-	"path/filepath"
+	"strconv"
 )
 
 type config struct {
@@ -11,8 +11,6 @@ type config struct {
 	projectName string
 
 	host string
-
-	apiKey string
 
 	pauseMetrics bool
 
@@ -36,7 +34,7 @@ func newConfig(opts ...Options) *config {
 	c := new(config)
 	c.pauseMetrics = false
 	c.pauseTraces = false
-	c.apiKey = ""
+	pid := strconv.Itoa(os.Getpid())
 	for _, fn := range opts {
 		fn(c)
 	}
@@ -54,20 +52,13 @@ func newConfig(opts ...Options) *config {
 			}
 		}
 	}
-	if c.apiKey == "" {
-		if v, ok := c.settings["apiKey"]; ok {
-			if s, ok := v.(string); ok {
-				c.apiKey = s
-			}
-		}
-	}
 	if c.serviceName == "" {
 		if v, ok := c.settings["service"]; ok {
 			if s, ok := v.(string); ok {
 				c.serviceName = s
 			}
 		} else {
-			c.serviceName = filepath.Base(os.Args[0])
+			c.serviceName = "Service-" + pid
 		}
 	}
 	if c.host == "" {
@@ -85,7 +76,7 @@ func newConfig(opts ...Options) *config {
 				c.projectName = s
 			}
 		} else {
-			c.projectName = filepath.Base(os.Args[0])
+			c.projectName = "Project-" + pid
 		}
 	}
 	return c

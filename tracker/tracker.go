@@ -6,9 +6,6 @@ import (
 
 func Track(opts ...Options) error {
 	c := newConfig(opts...)
-	if c.apiKey == "" {
-		log.Fatalf("API key is required")
-	}
 	if c.pauseTraces == false {
 		initTracer(c)
 	}

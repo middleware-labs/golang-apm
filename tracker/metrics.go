@@ -50,7 +50,6 @@ func (t *Tracer) init(c *config) error {
 			attribute.String("service.name", c.serviceName),
 			attribute.String("library.language", "go"),
 			attribute.Bool("mw_agent", true),
-			attribute.String("mw.account_key", c.apiKey),
 			attribute.String("project.name", c.projectName),
 		),
 	)

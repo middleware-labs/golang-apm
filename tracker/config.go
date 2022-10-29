@@ -62,7 +62,7 @@ func newConfig(opts ...Options) *config {
 		}
 	}
 
-	c.host = getEnv("MW_AGENT_SERVICE", "localhost:4320")
+	c.host = getHostValue("MW_AGENT_SERVICE", "localhost:4320")
 
 	if c.projectName == "" {
 		if v, ok := c.settings["projectName"]; ok {
@@ -76,10 +76,10 @@ func newConfig(opts ...Options) *config {
 	return c
 }
 
-func getEnv(key, defaultValue string) string {
+func getHostValue(key, defaultValue string) string {
 	value := os.Getenv(key)
 	if len(value) == 0 {
 		return defaultValue
 	}
-	return value
+	return value + ":9319"
 }

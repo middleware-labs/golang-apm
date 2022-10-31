@@ -62,7 +62,7 @@ func newConfig(opts ...Options) *config {
 		}
 	}
 
-	c.host = getHostValue("MW_AGENT_SERVICE", "localhost:4320")
+	c.host = getHostValue("MW_AGENT_SERVICE", "localhost:9319")
 
 	if c.projectName == "" {
 		if v, ok := c.settings["projectName"]; ok {

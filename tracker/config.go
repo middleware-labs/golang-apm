@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-type config struct {
-	serviceName string
+type Config struct {
+	ServiceName string
 
 	projectName string
 
@@ -19,10 +19,10 @@ type config struct {
 	settings map[string]interface{}
 }
 
-type Options func(*config)
+type Options func(*Config)
 
 func WithConfigTag(k string, v interface{}) Options {
-	return func(c *config) {
+	return func(c *Config) {
 		if c.settings == nil {
 			c.settings = make(map[string]interface{})
 		}
@@ -30,8 +30,8 @@ func WithConfigTag(k string, v interface{}) Options {
 	}
 }
 
-func newConfig(opts ...Options) *config {
-	c := new(config)
+func newConfig(opts ...Options) *Config {
+	c := new(Config)
 	c.pauseMetrics = false
 	c.pauseTraces = false
 	pid := strconv.Itoa(os.Getpid())
@@ -52,13 +52,13 @@ func newConfig(opts ...Options) *config {
 			}
 		}
 	}
-	if c.serviceName == "" {
+	if c.ServiceName == "" {
 		if v, ok := c.settings["service"]; ok {
 			if s, ok := v.(string); ok {
-				c.serviceName = s
+				c.ServiceName = s
 			}
 		} else {
-			c.serviceName = "Service-" + pid
+			c.ServiceName = "Service-" + pid
 		}
 	}
 

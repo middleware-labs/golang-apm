@@ -18,14 +18,14 @@ import (
 )
 
 type ClientInterface interface {
-	Init(serviceName string) error
+	Init(ServiceName string) error
 	CollectMetrics()
 	createMetric(name string, value float64)
 }
 
 type Tracer struct{}
 
-func (t *Tracer) init(c *config) error {
+func (t *Tracer) init(c *Config) error {
 	client := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithEndpoint(c.host),
@@ -47,7 +47,7 @@ func (t *Tracer) init(c *config) error {
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
-			attribute.String("service.name", c.serviceName),
+			attribute.String("service.name", c.ServiceName),
 			attribute.String("library.language", "go"),
 			attribute.Bool("mw_agent", true),
 			attribute.String("project.name", c.projectName),

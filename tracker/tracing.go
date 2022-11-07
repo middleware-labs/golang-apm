@@ -13,7 +13,7 @@ import (
 	"log"
 )
 
-func initTracer(c *config) func(context.Context) error {
+func initTracer(c *Config) func(context.Context) error {
 	collectorURL := c.host
 	secureOption := otlptracegrpc.WithInsecure()
 	exporter, err := otlptrace.New(
@@ -30,7 +30,7 @@ func initTracer(c *config) func(context.Context) error {
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
-			attribute.String("service.name", c.serviceName),
+			attribute.String("service.name", c.ServiceName),
 			attribute.String("library.language", "go"),
 			attribute.Bool("mw_agent", true),
 			attribute.String("project.name", c.projectName),

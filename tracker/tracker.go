@@ -1,9 +1,5 @@
 package tracker
 
-import (
-	"log"
-)
-
 func Track(opts ...Options) (*Config, error) {
 	c := newConfig(opts...)
 	if c.pauseTraces == false {
@@ -11,11 +7,7 @@ func Track(opts ...Options) (*Config, error) {
 	}
 	if c.pauseMetrics == false {
 		handler := Tracer{}
-		err := handler.init(c)
-		if err != nil {
-			log.Fatalf("failed to create the collector exporter: %v", err)
-			return nil, err
-		}
+		go handler.init(c)
 	}
 	return c, nil
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -52,6 +53,15 @@ func initTracer(c *Config) func(context.Context) error {
 
 func SpanFromContext(ctx context.Context) trace.Span {
 	span := trace.SpanFromContext(ctx)
+	return span
+}
+
+func RecordError(ctx context.Context, err error) trace.Span {
+	span := trace.SpanFromContext(ctx)
+	if err != nil {
+		span.RecordError(err, trace.WithStackTrace(true))
+		span.SetStatus(codes.Error, err.Error())
+	}
 	return span
 }
 

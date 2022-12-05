@@ -28,40 +28,40 @@ func getEnv(key, defaultValue string) string {
 
 func Error(message string) {
 	var data = map[string]string{
-		"level":       "error",
-		"message":     message,
-		"projectName": projectName,
-		"serviceName": serviceName,
+		"level":        "error",
+		"message":      message,
+		"project.name": projectName,
+		"service.name": serviceName,
 	}
 	logger.Post(tag, data)
 }
 
 func Info(message string) {
 	var data = map[string]string{
-		"level":       "info",
-		"message":     message,
-		"projectName": projectName,
-		"serviceName": serviceName,
+		"level":        "info",
+		"message":      message,
+		"project.name": projectName,
+		"service.name": serviceName,
 	}
 	logger.Post(tag, data)
 }
 
 func Warn(message string) {
 	var data = map[string]string{
-		"level":       "warn",
-		"message":     message,
-		"projectName": projectName,
-		"serviceName": serviceName,
+		"level":        "warn",
+		"message":      message,
+		"project.name": projectName,
+		"service.name": serviceName,
 	}
 	logger.Post(tag, data)
 }
 
 func Debug(message string) {
 	var data = map[string]string{
-		"level":       "debug",
-		"message":     message,
-		"projectName": projectName,
-		"serviceName": serviceName,
+		"level":        "debug",
+		"message":      message,
+		"project.name": projectName,
+		"service.name": serviceName,
 	}
 	logger.Post(tag, data)
 }

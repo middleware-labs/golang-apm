@@ -27,7 +27,7 @@ func main() {
 
 ```
 
-If you want to record an exceptions in traces then you can use track.RecordError(ctx,err) method.
+If you want to record exceptions in traces then you can use track.RecordError(ctx,err) method.
 
 ```golang
 

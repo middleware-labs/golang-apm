@@ -21,4 +21,24 @@ func main() {
 	logger.Info("Info")
 	
 	logger.Warn("Warn")
+	
+	logger.Debug("Debug")
 }
+
+```
+
+If you want to record an exceptions in traces then you can use track.RecordError(ctx,err) method.
+
+```golang
+
+app.get('/hello', (req, res) => {
+    ctx := req.Context()
+    try {
+        throw ("error");
+    } catch (error) {
+        track.RecordError(ctx, err)
+    }
+})
+
+```
+

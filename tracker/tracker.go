@@ -1,7 +1,12 @@
 package tracker
 
+import (
+	"github.com/middleware-labs/golang-apm/logger"
+)
+
 func Track(opts ...Options) (*Config, error) {
 	c := newConfig(opts...)
+	logger.InitLogger(c.projectName, c.ServiceName)
 	if c.pauseTraces == false {
 		initTracer(c)
 	}

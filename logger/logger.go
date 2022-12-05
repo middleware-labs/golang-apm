@@ -6,10 +6,17 @@ import (
 )
 
 var (
-	host      = getEnv("MW_AGENT_SERVICE", "localhost")
-	logger, _ = fluent.New(fluent.Config{FluentPort: 8006, FluentHost: host})
-	tag       = "go.app"
+	host        = getEnv("MW_AGENT_SERVICE", "localhost")
+	logger, _   = fluent.New(fluent.Config{FluentPort: 8006, FluentHost: host})
+	tag         = "go.app"
+	projectName = ""
+	serviceName = ""
 )
+
+func InitLogger(project string, service string) {
+	projectName = project
+	serviceName = service
+}
 
 func getEnv(key, defaultValue string) string {
 	value := os.Getenv(key)
@@ -21,24 +28,40 @@ func getEnv(key, defaultValue string) string {
 
 func Error(message string) {
 	var data = map[string]string{
-		"level":   "error",
-		"message": message,
+		"level":       "error",
+		"message":     message,
+		"projectName": projectName,
+		"serviceName": serviceName,
 	}
 	logger.Post(tag, data)
 }
 
 func Info(message string) {
 	var data = map[string]string{
-		"level":   "info",
-		"message": message,
+		"level":       "info",
+		"message":     message,
+		"projectName": projectName,
+		"serviceName": serviceName,
 	}
 	logger.Post(tag, data)
 }
 
 func Warn(message string) {
 	var data = map[string]string{
-		"level":   "warn",
-		"message": message,
+		"level":       "warn",
+		"message":     message,
+		"projectName": projectName,
+		"serviceName": serviceName,
+	}
+	logger.Post(tag, data)
+}
+
+func Debug(message string) {
+	var data = map[string]string{
+		"level":       "debug",
+		"message":     message,
+		"projectName": projectName,
+		"serviceName": serviceName,
 	}
 	logger.Post(tag, data)
 }

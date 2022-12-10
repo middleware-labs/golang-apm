@@ -22,7 +22,6 @@ type ClientInterface interface {
 	Init(ServiceName string) error
 	CollectMetrics()
 	createMetric(name string, value float64)
-	Meter()
 }
 
 type Metrics struct{}
@@ -116,7 +115,7 @@ func (t *Metrics) createMetric(name string, value float64) {
 	counter.Add(ctx, value)
 }
 
-func (t *Metrics) Meter() metric.Meter {
+func Meter() metric.Meter {
 	m := global.Meter("golang-agent")
 	return m
 }

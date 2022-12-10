@@ -11,7 +11,7 @@ func Track(opts ...Options) (*Config, error) {
 		initTracer(c)
 	}
 	if c.pauseMetrics == false {
-		handler := Tracer{}
+		handler := Metrics{}
 		go handler.init(c)
 	}
 	return c, nil

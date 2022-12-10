@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"time"
 
+	"go.opentelemetry.io/otel/metric"
 	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
 	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
 )
@@ -21,11 +22,12 @@ type ClientInterface interface {
 	Init(ServiceName string) error
 	CollectMetrics()
 	createMetric(name string, value float64)
+	Meter()
 }
 
-type Tracer struct{}
+type Metrics struct{}
 
-func (t *Tracer) init(c *Config) error {
+func (t *Metrics) init(c *Config) error {
 	client := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithEndpoint(c.host),
@@ -88,7 +90,7 @@ func (t *Tracer) init(c *Config) error {
 	return nil
 }
 
-func (t *Tracer) collectMetrics() {
+func (t *Metrics) collectMetrics() {
 	var ms runtime.MemStats
 
 	t.createMetric("num_cpu", float64(runtime.NumCPU()))
@@ -104,7 +106,7 @@ func (t *Tracer) collectMetrics() {
 	t.createMetric("mem_stats.frees", float64(ms.Frees))
 }
 
-func (t *Tracer) createMetric(name string, value float64) {
+func (t *Metrics) createMetric(name string, value float64) {
 	ctx := context.Background()
 	meter := global.Meter("golang-agent")
 	counter, err := meter.SyncFloat64().Counter(name)
@@ -112,4 +114,9 @@ func (t *Tracer) createMetric(name string, value float64) {
 		log.Fatalf("Failed to create the instrument: %v", err)
 	}
 	counter.Add(ctx, value)
+}
+
+func (t *Metrics) Meter() metric.Meter {
+	m := global.Meter("golang-agent")
+	return m
 }

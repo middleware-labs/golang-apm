@@ -2,20 +2,16 @@ package tracker
 
 import (
 	"context"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/metric/global"
-	controller "go.opentelemetry.io/otel/sdk/metric/controller/basic"
-	"go.opentelemetry.io/otel/sdk/resource"
 	"log"
 	"runtime"
 	"time"
 
-	"go.opentelemetry.io/otel/metric"
-	processor "go.opentelemetry.io/otel/sdk/metric/processor/basic"
-	"go.opentelemetry.io/otel/sdk/metric/selector/simple"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	mt "go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/global"
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 )
 
 type ClientInterface interface {
@@ -27,24 +23,15 @@ type ClientInterface interface {
 type Metrics struct{}
 
 func (t *Metrics) init(c *Config) error {
-	client := otlpmetricgrpc.NewClient(
+	ctx := context.Background()
+	exp, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithInsecure(),
 		otlpmetricgrpc.WithEndpoint(c.host),
 	)
-	ctx := context.Background()
-	exp, err := otlpmetric.New(ctx, client)
 	if err != nil {
-		log.Fatalf("failed to create the collector exporter: %v", err)
-		return err
+		panic(err)
 	}
 
-	defer func() {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
-		defer cancel()
-		if err := exp.Shutdown(ctx); err != nil {
-			otel.Handle(err)
-		}
-	}()
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
@@ -54,31 +41,18 @@ func (t *Metrics) init(c *Config) error {
 			attribute.String("project.name", c.projectName),
 		),
 	)
-	pusher := controller.New(
-		processor.NewFactory(
-			simple.NewWithHistogramDistribution(),
-			exp,
-		),
-		controller.WithExporter(exp),
-		controller.WithCollectPeriod(2*time.Second),
-		controller.WithResource(resources),
-	)
 
-	global.SetMeterProvider(pusher)
+	meterProvider := metric.NewMeterProvider(
+		metric.WithReader(metric.NewPeriodicReader(exp)),
+		metric.WithResource(resources))
 
-	if err := pusher.Start(ctx); err != nil {
-		log.Fatalf("could not start metric controller: %v", err)
-		return err
-	}
 	defer func() {
-		ctx, cancel := context.WithTimeout(ctx, time.Second)
-		defer cancel()
-		if err := pusher.Stop(ctx); err != nil {
-			otel.Handle(err)
+		if err := meterProvider.Shutdown(ctx); err != nil {
+			panic(err)
 		}
 	}()
-
-	tick := time.NewTicker(1 * time.Second)
+	global.SetMeterProvider(meterProvider)
+	tick := time.NewTicker(10 * time.Second)
 	defer tick.Stop()
 	for {
 		select {
@@ -88,6 +62,7 @@ func (t *Metrics) init(c *Config) error {
 	}
 	return nil
 }
+
 
 func (t *Metrics) collectMetrics() {
 	var ms runtime.MemStats
@@ -115,7 +90,7 @@ func (t *Metrics) createMetric(name string, value float64) {
 	counter.Add(ctx, value)
 }
 
-func Meter() metric.Meter {
+func Meter() mt.Meter {
 	m := global.Meter("golang-agent")
 	return m
 }

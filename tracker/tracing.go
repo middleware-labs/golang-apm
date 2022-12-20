@@ -65,8 +65,25 @@ func RecordError(ctx context.Context, err error) trace.Span {
 	return span
 }
 
-func WithAttribute(attributes attribute.KeyValue) trace.SpanStartEventOption {
-	return trace.WithAttributes(attributes)
+func SetAttribute(ctx context.Context, name string, value interface{}) {
+	span := trace.SpanFromContext(ctx)
+	switch v := value.(type) {
+	case bool:
+		span.SetAttributes(attribute.Bool(name, v))
+	case float64:
+		span.SetAttributes(attribute.Float64(name, v))
+	case int:
+		span.SetAttributes(attribute.Int(name, v))
+	case int64:
+		span.SetAttributes(attribute.Int64(name, v))
+	case string:
+		span.SetAttributes(attribute.String(name, v))
+	}
+}
+
+func SetAttributes(ctx context.Context, attributes attribute.KeyValue) {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(attributes)
 }
 
 // Bool creates a attribute.KeyValue with a BOOL Value type.

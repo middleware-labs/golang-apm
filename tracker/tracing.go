@@ -81,11 +81,6 @@ func SetAttribute(ctx context.Context, name string, value interface{}) {
 	}
 }
 
-func SetAttributes(ctx context.Context, attributes attribute.KeyValue) {
-	span := trace.SpanFromContext(ctx)
-	span.SetAttributes(attributes)
-}
-
 // Bool creates a attribute.KeyValue with a BOOL Value type.
 func Bool(k string, v bool) attribute.KeyValue {
 	return attribute.Key(k).Bool(v)

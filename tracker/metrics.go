@@ -63,7 +63,6 @@ func (t *Metrics) init(c *Config) error {
 	return nil
 }
 
-
 func (t *Metrics) collectMetrics() {
 	var ms runtime.MemStats
 
@@ -83,7 +82,7 @@ func (t *Metrics) collectMetrics() {
 func (t *Metrics) createMetric(name string, value float64) {
 	ctx := context.Background()
 	meter := global.Meter("golang-agent")
-	counter, err := meter.SyncFloat64().Counter(name)
+	counter, err := meter.Float64Counter(name)
 	if err != nil {
 		log.Fatalf("Failed to create the instrument: %v", err)
 	}

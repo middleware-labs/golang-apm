@@ -50,6 +50,11 @@ func newConfig(opts ...Options) *Config {
 	if profilingServerUrl == "" {
 		profilingServerUrl = "https://profiling.middleware.io"
 	}
+	authUrl := os.Getenv("MW_AUTH_URL")
+	if authUrl == "" {
+		authUrl = "https://app.middleware.io/api/v1/auth"
+	}
+
 	pid := strconv.Itoa(os.Getpid())
 	for _, fn := range opts {
 		fn(c)
@@ -111,8 +116,7 @@ func newConfig(opts ...Options) *Config {
 	}
 
 	if c.enableProfiling && c.accessToken != "" {
-		url := "https://app.middleware.io/api/v1/auth"
-		req, err := http.NewRequest("POST", url, nil)
+		req, err := http.NewRequest("POST", authUrl, nil)
 		if err != nil {
 			log.Println("Error creating request:", err)
 		}

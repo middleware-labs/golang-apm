@@ -1,6 +1,11 @@
 package tracker
 
 import (
+	"encoding/json"
+	"github.com/pyroscope-io/client/pyroscope"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"strconv"
 )
@@ -17,6 +22,12 @@ type Config struct {
 	pauseTraces bool
 
 	settings map[string]interface{}
+
+	enableProfiling bool
+
+	TenantID string
+
+	accessToken string
 }
 
 type Options func(*Config)
@@ -34,6 +45,11 @@ func newConfig(opts ...Options) *Config {
 	c := new(Config)
 	c.pauseMetrics = false
 	c.pauseTraces = false
+	c.enableProfiling = true
+	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
+	if profilingServerUrl == "" {
+		profilingServerUrl = "https://profiling.middleware.io"
+	}
 	pid := strconv.Itoa(os.Getpid())
 	for _, fn := range opts {
 		fn(c)
@@ -52,6 +68,14 @@ func newConfig(opts ...Options) *Config {
 			}
 		}
 	}
+	if c.enableProfiling == true {
+		if v, ok := c.settings["enableProfiling"]; ok {
+			if s, ok := v.(bool); ok {
+				c.enableProfiling = s
+			}
+		}
+	}
+
 	if c.ServiceName == "" {
 		if v, ok := c.settings["service"]; ok {
 			if s, ok := v.(string); ok {
@@ -71,6 +95,64 @@ func newConfig(opts ...Options) *Config {
 			}
 		} else {
 			c.projectName = "Project-" + pid
+		}
+	}
+
+	if c.accessToken == "" {
+		if v, ok := c.settings["accessToken"]; ok {
+			if s, ok := v.(string); ok {
+				c.accessToken = s
+			}
+		}
+	}
+
+	if c.enableProfiling && c.accessToken == "" {
+		log.Println("Middleware accessToken is required for Profiling")
+	}
+
+	if c.enableProfiling && c.accessToken != "" {
+		url := "https://app.middleware.io/api/v1/auth"
+		req, err := http.NewRequest("POST", url, nil)
+		if err != nil {
+			log.Println("Error creating request:", err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Bearer "+c.accessToken)
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Println("Error making request:", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode == 200 {
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Println("Error reading Middleware response:", err)
+			}
+			var data map[string]interface{}
+			err = json.Unmarshal([]byte(string(body)), &data)
+			if err != nil {
+				log.Println("Error parsing Middleware JSON:", err)
+			}
+			if data["success"] == true {
+				account, ok := data["data"].(map[string]interface{})["account"].(string)
+				if !ok {
+					log.Println("Failed to retrieve TenantID from  api response")
+				}
+				c.TenantID = account
+				pyroscope.Start(pyroscope.Config{
+					ApplicationName: c.ServiceName,
+					ServerAddress:   profilingServerUrl,
+					TenantID:        c.TenantID,
+					ProfileTypes: []pyroscope.ProfileType{
+						pyroscope.ProfileCPU,
+						pyroscope.ProfileInuseObjects,
+						pyroscope.ProfileAllocObjects,
+						pyroscope.ProfileInuseSpace,
+						pyroscope.ProfileAllocSpace,
+					},
+				})
+			}
 		}
 	}
 	return c

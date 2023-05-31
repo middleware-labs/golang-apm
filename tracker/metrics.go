@@ -2,14 +2,13 @@ package tracker
 
 import (
 	"context"
+	"go.opentelemetry.io/otel"
 	"log"
 	"runtime"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	mt "go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
@@ -51,7 +50,7 @@ func (t *Metrics) init(c *Config) error {
 			panic(err)
 		}
 	}()
-	global.SetMeterProvider(meterProvider)
+	otel.SetMeterProvider(meterProvider)
 	tick := time.NewTicker(10 * time.Second)
 	defer tick.Stop()
 	for {
@@ -81,15 +80,10 @@ func (t *Metrics) collectMetrics() {
 
 func (t *Metrics) createMetric(name string, value float64) {
 	ctx := context.Background()
-	meter := global.Meter("golang-agent")
+	meter := otel.Meter("golang-agent")
 	counter, err := meter.Float64Counter(name)
 	if err != nil {
 		log.Fatalf("Failed to create the instrument: %v", err)
 	}
 	counter.Add(ctx, value)
-}
-
-func Meter() mt.Meter {
-	m := global.Meter("golang-agent")
-	return m
 }

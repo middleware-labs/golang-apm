@@ -125,23 +125,27 @@ func newConfig(opts ...Options) *Config {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Println("Error making request:", err)
+			log.Println("Error making auth request")
+			return c
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode == 200 {
 			body, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				log.Println("Error reading Middleware response:", err)
+				log.Println("Error reading Middleware auth API response")
+				return c
 			}
 			var data map[string]interface{}
 			err = json.Unmarshal([]byte(string(body)), &data)
 			if err != nil {
-				log.Println("Error parsing Middleware JSON:", err)
+				log.Println("Error parsing Middleware JSON")
+				return c
 			}
 			if data["success"] == true {
 				account, ok := data["data"].(map[string]interface{})["account"].(string)
 				if !ok {
 					log.Println("Failed to retrieve TenantID from  api response")
+					return c
 				}
 				c.TenantID = account
 				pyroscope.Start(pyroscope.Config{

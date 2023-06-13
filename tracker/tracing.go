@@ -56,6 +56,14 @@ func SpanFromContext(ctx context.Context) trace.Span {
 	return span
 }
 
+func WithStackTrace(b bool) trace.SpanEndEventOption {
+	return trace.WithStackTrace(b)
+}
+
+func ErrorCode() codes.Code {
+	return codes.Error
+}
+
 func RecordError(ctx context.Context, err error) trace.Span {
 	span := trace.SpanFromContext(ctx)
 	if err != nil {

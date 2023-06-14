@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"fmt"
+	goErros "github.com/go-errors/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -62,6 +63,21 @@ func WithStackTrace(b bool) trace.SpanEndEventOption {
 
 func ErrorCode() codes.Code {
 	return codes.Error
+}
+
+func ErrorRecording(ctx context.Context, err error) {
+	span := trace.SpanFromContext(ctx)
+	if err != nil {
+		errorStack := string(goErros.Wrap(err, 3).Stack())
+		span.AddEvent("exception",
+			trace.WithAttributes(
+				attribute.String("exception.type", "*errors.errorString"),
+				attribute.String("exception.stacktrace", errorStack),
+				attribute.String("exception.message", err.Error()),
+			),
+		)
+		span.SetStatus(codes.Error, err.Error())
+	}
 }
 
 func RecordError(ctx context.Context, err error) trace.Span {

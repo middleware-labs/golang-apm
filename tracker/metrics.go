@@ -2,7 +2,6 @@ package tracker
 
 import (
 	"context"
-	"fmt"
 	"go.opentelemetry.io/otel"
 	"log"
 	"runtime"
@@ -30,7 +29,7 @@ func (t *Metrics) init(c *Config) error {
 		otlpmetricgrpc.WithEndpoint(c.host),
 	)
 	if err != nil {
-		panic(err)
+		log.Println(err)
 	}
 
 	resources, err := resource.New(
@@ -51,7 +50,7 @@ func (t *Metrics) init(c *Config) error {
 
 	defer func() {
 		if err := meterProvider.Shutdown(ctx); err != nil {
-			panic(err)
+			log.Println(err)
 		}
 	}()
 	otel.SetMeterProvider(meterProvider)
@@ -60,8 +59,6 @@ func (t *Metrics) init(c *Config) error {
 	for {
 		select {
 		case <-tick.C:
-			fmt.Println("DSfds")
-
 			t.collectMetrics()
 		}
 	}
@@ -114,13 +111,13 @@ func (t *Metrics) createMetric(name string, value float64) {
 	meter := otel.Meter("golang-agent")
 	gauge, err := meter.Float64ObservableGauge(name, api.WithDescription(""))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	_, err = meter.RegisterCallback(func(_ context.Context, o api.Observer) error {
 		o.ObserveFloat64(gauge, value)
 		return nil
 	}, gauge)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 }

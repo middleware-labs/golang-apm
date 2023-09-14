@@ -17,7 +17,7 @@ import (
 Add this snippet in your main function
 
 ```
-track.Track(
+go track.Track(
 		track.WithConfigTag("service", "your service name"),
 		track.WithConfigTag("projectName", "your project name"),
                 track.WithConfigTag("accessToken", "your API key"),

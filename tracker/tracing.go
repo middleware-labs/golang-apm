@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	goErros "github.com/go-errors/errors"
+	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
@@ -48,6 +50,13 @@ func initTracer(c *Config) func(context.Context) error {
 			sdktrace.WithBatcher(exporter),
 			sdktrace.WithResource(resources),
 		),
+	)
+	p := b3.New()
+	otel.SetTextMapPropagator(
+		propagation.NewCompositeTextMapPropagator(
+			p,
+			propagation.TraceContext{},
+			propagation.Baggage{}),
 	)
 	return exporter.Shutdown
 }

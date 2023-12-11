@@ -49,20 +49,20 @@ func CollectFloat64UpDownCounter(name string) api.Float64UpDownCounter {
 
 func CollectInt64Histogram(name string) api.Int64Histogram {
 	meter := otel.Meter("golang-agent")
-	counter, err := meter.Int64Histogram(name, api.WithDescription(""))
+	histogram, err := meter.Int64Histogram(name, api.WithDescription(""))
 	if err != nil {
 		log.Println(err)
 	}
-	return counter
+	return histogram
 }
 
 func CollectFloat64Histogram(name string) api.Float64Histogram {
 	meter := otel.Meter("golang-agent")
-	counter, err := meter.Float64Histogram(name, api.WithDescription(""))
+	histogram, err := meter.Float64Histogram(name, api.WithDescription(""))
 	if err != nil {
 		log.Println(err)
 	}
-	return counter
+	return histogram
 }
 
 func CollectInt64Gauge(name string, value int64) api.Int64ObservableGauge {

@@ -2,7 +2,7 @@ package tracker
 
 import (
 	"encoding/json"
-	"github.com/pyroscope-io/client/pyroscope"
+	"github.com/grafana/pyroscope-go"
 	"io/ioutil"
 	"log"
 	"net/http"

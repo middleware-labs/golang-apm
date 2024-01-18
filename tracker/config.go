@@ -28,6 +28,8 @@ type Config struct {
 	TenantID string
 
 	accessToken string
+
+	target string
 }
 
 type Options func(*Config)
@@ -91,7 +93,17 @@ func newConfig(opts ...Options) *Config {
 		}
 	}
 
-	c.host = getHostValue("MW_AGENT_SERVICE", "localhost:9319")
+	if c.target == "" {
+		if v, ok := c.settings["target"]; ok {
+			if s, ok := v.(string); ok {
+				c.target = s
+			}
+		} else {
+			c.target = "localhost:9319"
+		}
+	}
+
+	c.host = getHostValue("MW_AGENT_SERVICE", c.target)
 
 	if c.projectName == "" {
 		if v, ok := c.settings["projectName"]; ok {

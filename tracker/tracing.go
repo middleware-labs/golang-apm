@@ -15,6 +15,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"log"
+	"time"
 )
 
 func initTracer(c *Config) func(context.Context) error {
@@ -46,9 +47,9 @@ func initTracer(c *Config) func(context.Context) error {
 
 	otel.SetTracerProvider(
 		sdktrace.NewTracerProvider(
-			sdktrace.WithSampler(sdktrace.AlwaysSample()),
-			sdktrace.WithBatcher(exporter),
 			sdktrace.WithResource(resources),
+			sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter,
+				sdktrace.WithMaxExportBatchSize(10000), sdktrace.WithBatchTimeout(10*time.Second))),
 		),
 	)
 	p := b3.New()

@@ -33,7 +33,7 @@ func Error(message string) {
 		"project.name": projectName,
 		"service.name": serviceName,
 	}
-	logger.Post(tag, data)
+	go logger.Post(tag, data)
 }
 
 func Info(message string) {
@@ -43,7 +43,7 @@ func Info(message string) {
 		"project.name": projectName,
 		"service.name": serviceName,
 	}
-	logger.Post(tag, data)
+	go logger.Post(tag, data)
 }
 
 func Warn(message string) {
@@ -53,7 +53,7 @@ func Warn(message string) {
 		"project.name": projectName,
 		"service.name": serviceName,
 	}
-	logger.Post(tag, data)
+	go logger.Post(tag, data)
 }
 
 func Debug(message string) {
@@ -63,5 +63,5 @@ func Debug(message string) {
 		"project.name": projectName,
 		"service.name": serviceName,
 	}
-	logger.Post(tag, data)
+	go logger.Post(tag, data)
 }

@@ -25,8 +25,7 @@ type Metrics struct{}
 func (t *Metrics) init(c *Config) error {
 	ctx := context.Background()
 	exp, err := otlpmetricgrpc.New(ctx,
-		otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithEndpoint(c.host),
+		otlpmetricgrpc.WithEndpoint(c.Host),
 	)
 	if err != nil {
 		log.Println(err)
@@ -41,6 +40,8 @@ func (t *Metrics) init(c *Config) error {
 			attribute.String("project.name", c.projectName),
 			attribute.Bool("runtime.metrics.go", true),
 			attribute.String("mw.app.lang", "go"),
+			attribute.String("mw.account_key", c.AccessToken),
+			attribute.String("mw_serverless", c.isServerless),
 		),
 	)
 
@@ -54,12 +55,15 @@ func (t *Metrics) init(c *Config) error {
 		}
 	}()
 	otel.SetMeterProvider(meterProvider)
-	tick := time.NewTicker(10 * time.Second)
-	defer tick.Stop()
-	for {
-		select {
-		case <-tick.C:
-			t.collectMetrics()
+
+	if c.pauseMetrics == false {
+		tick := time.NewTicker(10 * time.Second)
+		defer tick.Stop()
+		for {
+			select {
+			case <-tick.C:
+				t.collectMetrics()
+			}
 		}
 	}
 	return nil

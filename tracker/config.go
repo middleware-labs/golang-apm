@@ -6,8 +6,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -15,7 +17,7 @@ type Config struct {
 
 	projectName string
 
-	host string
+	Host string
 
 	pauseMetrics bool
 
@@ -27,9 +29,13 @@ type Config struct {
 
 	TenantID string
 
-	accessToken string
+	AccessToken string
 
 	target string
+
+	fluentHost string
+
+	isServerless string
 }
 
 type Options func(*Config)
@@ -42,12 +48,16 @@ func WithConfigTag(k string, v interface{}) Options {
 		c.settings[k] = v
 	}
 }
+func doesNotContainHTTP(s string) bool {
+	return !(strings.Contains(s, "http://") || strings.Contains(s, "https://"))
+}
 
 func newConfig(opts ...Options) *Config {
 	c := new(Config)
 	c.pauseMetrics = false
 	c.pauseTraces = false
 	c.enableProfiling = true
+	c.fluentHost = "localhost"
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
 	if profilingServerUrl == "" {
 		profilingServerUrl = "https://profiling.middleware.io"
@@ -96,14 +106,28 @@ func newConfig(opts ...Options) *Config {
 	if c.target == "" {
 		if v, ok := c.settings["target"]; ok {
 			if s, ok := v.(string); ok {
+				os.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "false")
 				c.target = s
+				target := s
+				if doesNotContainHTTP(target) {
+					target = "https://" + target
+				}
+				parsedURL, err := url.Parse(target)
+				if err != nil {
+					log.Println("url parse error", err)
+				}
+				hostnameParts := strings.SplitN(parsedURL.Hostname(), ".", 2)
+				c.fluentHost = "fluent." + hostnameParts[len(hostnameParts)-1]
+				c.isServerless = "1"
 			}
 		} else {
+			os.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 			c.target = "localhost:9319"
+			c.isServerless = "0"
 		}
 	}
 
-	c.host = getHostValue("MW_AGENT_SERVICE", c.target)
+	c.Host = getHostValue("MW_AGENT_SERVICE", c.target)
 
 	if c.projectName == "" {
 		if v, ok := c.settings["projectName"]; ok {
@@ -115,25 +139,25 @@ func newConfig(opts ...Options) *Config {
 		}
 	}
 
-	if c.accessToken == "" {
+	if c.AccessToken == "" {
 		if v, ok := c.settings["accessToken"]; ok {
 			if s, ok := v.(string); ok {
-				c.accessToken = s
+				c.AccessToken = s
 			}
 		}
 	}
 
-	if c.enableProfiling && c.accessToken == "" {
+	if c.enableProfiling && c.AccessToken == "" {
 		log.Println("Middleware accessToken is required for Profiling")
 	}
 
-	if c.enableProfiling && c.accessToken != "" {
+	if c.enableProfiling && c.AccessToken != "" {
 		req, err := http.NewRequest("POST", authUrl, nil)
 		if err != nil {
 			log.Println("Error creating request:", err)
 		}
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.Header.Set("Authorization", "Bearer "+c.accessToken)
+		req.Header.Set("Authorization", "Bearer "+c.AccessToken)
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {

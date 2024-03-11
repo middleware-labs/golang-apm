@@ -6,16 +6,20 @@ import (
 )
 
 var (
-	host        = getEnv("MW_AGENT_SERVICE", "localhost")
+	host        = "localhost"
 	logger, _   = fluent.New(fluent.Config{FluentPort: 8006, FluentHost: host})
-	tag         = "go.app"
-	projectName = ""
-	serviceName = ""
+	serviceName = "default-service"
+	accessToken = ""
+	serverless  = "0"
 )
 
-func InitLogger(project string, service string) {
-	projectName = project
-	serviceName = service
+func InitLogger(ServiceName string, AccessToken string, fluentHost string, isServerless string) {
+	serviceName = ServiceName
+	accessToken = AccessToken
+	serverless = isServerless
+	host = fluentHost
+	target := getEnv("MW_AGENT_SERVICE", host)
+	logger, _ = fluent.New(fluent.Config{FluentPort: 8006, FluentHost: target})
 }
 
 func getEnv(key, defaultValue string) string {
@@ -26,42 +30,29 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
-func Error(message string) {
+func Post(message string, level string) {
 	var data = map[string]string{
-		"level":        "error",
-		"message":      message,
-		"project.name": projectName,
-		"service.name": serviceName,
+		"level":          level,
+		"message":        message,
+		"service.name":   serviceName,
+		"mw.account_key": accessToken,
+		"mw_serverless":  serverless,
 	}
-	logger.Post(tag, data)
+	go logger.Post(serviceName, data)
+}
+
+func Error(message string) {
+	go Post(message, "error")
 }
 
 func Info(message string) {
-	var data = map[string]string{
-		"level":        "info",
-		"message":      message,
-		"project.name": projectName,
-		"service.name": serviceName,
-	}
-	logger.Post(tag, data)
+	go Post(message, "info")
 }
 
 func Warn(message string) {
-	var data = map[string]string{
-		"level":        "warn",
-		"message":      message,
-		"project.name": projectName,
-		"service.name": serviceName,
-	}
-	logger.Post(tag, data)
+	go Post(message, "warn")
 }
 
 func Debug(message string) {
-	var data = map[string]string{
-		"level":        "debug",
-		"message":      message,
-		"project.name": projectName,
-		"service.name": serviceName,
-	}
-	logger.Post(tag, data)
+	go Post(message, "debug")
 }

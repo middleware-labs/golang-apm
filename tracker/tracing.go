@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -19,12 +20,10 @@ import (
 )
 
 func initTracer(c *Config) func(context.Context) error {
-	collectorURL := c.host
-	secureOption := otlptracegrpc.WithInsecure()
+	collectorURL := c.Host
 	exporter, err := otlptrace.New(
 		context.Background(),
 		otlptracegrpc.NewClient(
-			secureOption,
 			otlptracegrpc.WithEndpoint(collectorURL),
 		),
 	)
@@ -32,6 +31,7 @@ func initTracer(c *Config) func(context.Context) error {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
@@ -39,6 +39,8 @@ func initTracer(c *Config) func(context.Context) error {
 			attribute.String("library.language", "go"),
 			attribute.Bool("mw_agent", true),
 			attribute.String("project.name", c.projectName),
+			attribute.String("mw.account_key", c.AccessToken),
+			attribute.String("mw_serverless", c.isServerless),
 		),
 	)
 	if err != nil {

@@ -2,7 +2,6 @@ package tracker
 
 import (
 	"encoding/json"
-	"github.com/grafana/pyroscope-go"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -10,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/grafana/pyroscope-go"
 )
 
 type Config struct {

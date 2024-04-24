@@ -1,8 +1,9 @@
 package logger
 
 import (
-	"github.com/fluent/fluent-logger-golang/fluent"
 	"os"
+
+	"github.com/fluent/fluent-logger-golang/fluent"
 )
 
 var (

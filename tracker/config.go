@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/grafana/pyroscope-go"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 type Config struct {
@@ -37,6 +39,10 @@ type Config struct {
 	fluentHost string
 
 	isServerless string
+
+	Tp *sdktrace.TracerProvider
+
+	Mp *sdkmetric.MeterProvider
 }
 
 type Options func(*Config)

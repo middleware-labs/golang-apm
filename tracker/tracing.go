@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"fmt"
+
 	goErros "github.com/go-errors/errors"
 	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
@@ -11,12 +12,13 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 
+	"log"
+	"time"
+
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"log"
-	"time"
 )
 
 func initTracer(c *Config) func(context.Context) error {
@@ -47,13 +49,14 @@ func initTracer(c *Config) func(context.Context) error {
 		log.Printf("Could not set resources: ", err)
 	}
 
-	otel.SetTracerProvider(
-		sdktrace.NewTracerProvider(
-			sdktrace.WithResource(resources),
-			sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter,
-				sdktrace.WithMaxExportBatchSize(10000), sdktrace.WithBatchTimeout(10*time.Second))),
-		),
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithResource(resources),
+		sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter,
+			sdktrace.WithMaxExportBatchSize(10000), sdktrace.WithBatchTimeout(10*time.Second))),
 	)
+	otel.SetTracerProvider(tp)
+	c.Tp = tp
+
 	p := b3.New()
 	otel.SetTextMapPropagator(
 		propagation.NewCompositeTextMapPropagator(

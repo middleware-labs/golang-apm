@@ -12,15 +12,16 @@ require (
 	github.com/fluent/fluent-logger-golang v1.9.0
 	github.com/go-errors/errors v1.5.1
 	github.com/grafana/pyroscope-go v1.1.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.51.0
 	go.opentelemetry.io/contrib/propagators/b3 v1.22.0
-	go.opentelemetry.io/otel v1.25.0
+	go.opentelemetry.io/otel v1.26.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.45.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.22.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.22.0
-	go.opentelemetry.io/otel/metric v1.25.0
+	go.opentelemetry.io/otel/metric v1.26.0
 	go.opentelemetry.io/otel/sdk v1.25.0
 	go.opentelemetry.io/otel/sdk/metric v1.22.0
-	go.opentelemetry.io/otel/trace v1.25.0
+	go.opentelemetry.io/otel/trace v1.26.0
 	go.uber.org/zap v1.27.0
 )
 

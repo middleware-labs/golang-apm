@@ -2,11 +2,14 @@ package tracker
 
 import (
 	"context"
-	"go.opentelemetry.io/otel"
 	"log"
 	"runtime"
+	"runtime/debug"
 	"time"
 
+	"go.opentelemetry.io/otel"
+
+	runtimemetrics "go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	api "go.opentelemetry.io/otel/metric"
@@ -46,9 +49,10 @@ func (t *Metrics) init(c *Config) error {
 	)
 
 	meterProvider := metric.NewMeterProvider(
-		metric.WithReader(metric.NewPeriodicReader(exp)),
+		metric.WithReader(metric.NewPeriodicReader(exp, metric.WithInterval(10*time.Second))),
 		metric.WithResource(resources))
 
+	c.Mp = meterProvider
 	defer func() {
 		if err := meterProvider.Shutdown(ctx); err != nil {
 			log.Println(err)
@@ -57,6 +61,7 @@ func (t *Metrics) init(c *Config) error {
 	otel.SetMeterProvider(meterProvider)
 
 	if c.pauseMetrics == false {
+		runtimemetrics.Start(runtimemetrics.WithMeterProvider(meterProvider))
 		tick := time.NewTicker(10 * time.Second)
 		defer tick.Stop()
 		for {
@@ -71,6 +76,10 @@ func (t *Metrics) init(c *Config) error {
 
 func (t *Metrics) collectMetrics() {
 	var ms runtime.MemStats
+	gc := debug.GCStats{
+		PauseQuantiles: make([]time.Duration, 5),
+	}
+	debug.ReadGCStats(&gc)
 	runtime.ReadMemStats(&ms)
 	t.createMetric("num_cpu", float64(runtime.NumCPU()))
 	t.createMetric("num_goroutine", float64(runtime.NumGoroutine()))
@@ -109,6 +118,9 @@ func (t *Metrics) collectMetrics() {
 	t.createMetric("mem_stats.num_gc", float64(ms.NumGC))
 	t.createMetric("mem_stats.num_forced_gc", float64(ms.NumForcedGC))
 	t.createMetric("mem_stats.gc_cpu_fraction", ms.GCCPUFraction)
+	for i, p := range []string{"min", "25p", "50p", "75p", "max"} {
+		t.createMetric("gc_stats.pause_quantiles."+p, float64(gc.PauseQuantiles[i]))
+	}
 }
 
 func (t *Metrics) createMetric(name string, value float64) {

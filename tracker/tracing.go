@@ -21,17 +21,19 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func initTracer(c *Config) func(context.Context) error {
+type Traces struct{}
+
+func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 	collectorURL := c.Host
 	exporter, err := otlptrace.New(
-		context.Background(),
+		ctx,
 		otlptracegrpc.NewClient(
 			otlptracegrpc.WithEndpoint(collectorURL),
 		),
 	)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Println("failed to create exporter for traces: ", err)
 	}
 
 	resources, err := resource.New(
@@ -45,8 +47,9 @@ func initTracer(c *Config) func(context.Context) error {
 			attribute.String("mw_serverless", c.isServerless),
 		),
 	)
+
 	if err != nil {
-		log.Printf("Could not set resources: ", err)
+		log.Println("failed to set resources for traces:", err)
 	}
 
 	tp := sdktrace.NewTracerProvider(
@@ -64,7 +67,23 @@ func initTracer(c *Config) func(context.Context) error {
 			propagation.TraceContext{},
 			propagation.Baggage{}),
 	)
-	return exporter.Shutdown
+	return err
+}
+
+func SpanID(ctx context.Context) string {
+	span := trace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return ""
+	}
+	return span.SpanContext().SpanID().String()
+}
+
+func TraceID(ctx context.Context) string {
+	span := trace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return ""
+	}
+	return span.SpanContext().TraceID().String()
 }
 
 func SpanFromContext(ctx context.Context) trace.Span {

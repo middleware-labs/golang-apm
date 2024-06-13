@@ -13,6 +13,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 )
 
+const MWTraceID = "traceId"
+const MWSpanID = "spanId"
+
 // configure common attributes for all logs
 func newResource(config *tracker.Config) *resource.Resource {
 	hostName, _ := os.Hostname()
@@ -23,9 +26,9 @@ func newResource(config *tracker.Config) *resource.Resource {
 	)
 }
 
-func NewMWOtelHook(config *tracker.Config) *otelzerolog.Hook {
+func NewMWOTelHook(config *tracker.Config) *otelzerolog.Hook {
 	ctx := context.Background()
-	exporter, _ := otlplogs.NewExporter(ctx, otlplogs.WithClient(otlplogsgrpc.NewClient(otlplogsgrpc.WithEndpoint("localhost:9319"))))
+	exporter, _ := otlplogs.NewExporter(ctx, otlplogs.WithClient(otlplogsgrpc.NewClient(otlplogsgrpc.WithEndpoint(config.Host))))
 	loggerProvider := sdk.NewLoggerProvider(
 		sdk.WithBatcher(exporter),
 		sdk.WithResource(newResource(config)),

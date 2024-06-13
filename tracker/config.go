@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,8 +12,20 @@ import (
 	"strings"
 
 	"github.com/grafana/pyroscope-go"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+)
+
+const (
+	PauseMetrics    string = "pauseMetrics"
+	PauseTraces     string = "pauseTraces"
+	PauseLogs       string = "pauseLogs"
+	EnableProfiling string = "enableProfiling"
+	Service         string = "service"
+	Target          string = "target"
+	Project         string = "projectName"
+	Token           string = "accessToken"
 )
 
 type Config struct {
@@ -25,6 +38,8 @@ type Config struct {
 	pauseMetrics bool
 
 	pauseTraces bool
+
+	pauseLogs bool
 
 	settings map[string]interface{}
 
@@ -43,6 +58,8 @@ type Config struct {
 	Tp *sdktrace.TracerProvider
 
 	Mp *sdkmetric.MeterProvider
+
+	Lp *sdklog.LoggerProvider
 }
 
 type Options func(*Config)
@@ -78,21 +95,28 @@ func newConfig(opts ...Options) *Config {
 	for _, fn := range opts {
 		fn(c)
 	}
-	if c.pauseMetrics == false {
+	if !c.pauseMetrics {
 		if v, ok := c.settings["pauseMetrics"]; ok {
 			if s, ok := v.(bool); ok {
 				c.pauseMetrics = s
 			}
 		}
 	}
-	if c.pauseTraces == false {
+	if !c.pauseTraces {
 		if v, ok := c.settings["pauseTraces"]; ok {
 			if s, ok := v.(bool); ok {
 				c.pauseTraces = s
 			}
 		}
 	}
-	if c.enableProfiling == true {
+	if !c.pauseLogs {
+		if v, ok := c.settings["pauseLogs"]; ok {
+			if s, ok := v.(bool); ok {
+				c.pauseLogs = s
+			}
+		}
+	}
+	if c.enableProfiling {
 		if v, ok := c.settings["enableProfiling"]; ok {
 			if s, ok := v.(bool); ok {
 				c.enableProfiling = s
@@ -190,8 +214,9 @@ func newConfig(opts ...Options) *Config {
 					log.Println("Failed to retrieve TenantID from  api response")
 					return c
 				}
+				profilingServerUrl = fmt.Sprint("https://" + account + ".middleware.io")
 				c.TenantID = account
-				pyroscope.Start(pyroscope.Config{
+				_, err := pyroscope.Start(pyroscope.Config{
 					ApplicationName: c.ServiceName,
 					ServerAddress:   profilingServerUrl,
 					TenantID:        c.TenantID,
@@ -203,6 +228,9 @@ func newConfig(opts ...Options) *Config {
 						pyroscope.ProfileAllocSpace,
 					},
 				})
+				if err != nil {
+					log.Println("failed to enable continuous profiling: ", err)
+				}
 			}
 		}
 	}

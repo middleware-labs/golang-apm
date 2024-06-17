@@ -17,21 +17,14 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
-type ClientInterface interface {
-	Init(ServiceName string) error
-	CollectMetrics()
-	createMetric(name string, value float64)
-}
-
 type Metrics struct{}
 
-func (t *Metrics) init(c *Config) error {
-	ctx := context.Background()
+func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 	exp, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(c.Host),
 	)
 	if err != nil {
-		log.Println(err)
+		log.Println("failed to create exporter for metrics: ", err)
 	}
 
 	resources, err := resource.New(
@@ -47,34 +40,37 @@ func (t *Metrics) init(c *Config) error {
 			attribute.String("mw_serverless", c.isServerless),
 		),
 	)
+	if err != nil {
+		log.Println("failed to set resources for metrics:", err)
+	}
 
 	meterProvider := metric.NewMeterProvider(
 		metric.WithReader(metric.NewPeriodicReader(exp, metric.WithInterval(10*time.Second))),
 		metric.WithResource(resources))
 
 	c.Mp = meterProvider
-	defer func() {
-		if err := meterProvider.Shutdown(ctx); err != nil {
-			log.Println(err)
-		}
-	}()
+
 	otel.SetMeterProvider(meterProvider)
 
-	if c.pauseMetrics == false {
-		runtimemetrics.Start(runtimemetrics.WithMeterProvider(meterProvider))
+	if !c.pauseMetrics {
+		err := runtimemetrics.Start(runtimemetrics.WithMeterProvider(meterProvider))
+		if err != nil {
+			log.Println("failed to start runtime metrics:", err)
+		}
+
 		tick := time.NewTicker(10 * time.Second)
 		defer tick.Stop()
 		for {
 			select {
 			case <-tick.C:
-				t.collectMetrics()
+				t.collectMetrics(ctx)
 			}
 		}
 	}
 	return nil
 }
 
-func (t *Metrics) collectMetrics() {
+func (t *Metrics) collectMetrics(ctx context.Context) {
 	var ms runtime.MemStats
 	gc := debug.GCStats{
 		PauseQuantiles: make([]time.Duration, 5),

@@ -1,18 +1,20 @@
-package mwotelzap
+package mwotelzerolog
 
 import (
 	"github.com/middleware-labs/golang-apm/tracker"
-	"go.opentelemetry.io/contrib/bridges/otelzap"
+	"github.com/sirupsen/logrus"
+	ol "go.opentelemetry.io/contrib/bridges/otellogrus"
 	otellog "go.opentelemetry.io/otel/sdk/log"
 )
 
-const loggerName = "mwzap"
+const loggerName = "mwlogrus"
 const MWTraceID = "traceId"
 const MWSpanID = "spanId"
 
 type config struct {
 	provider *otellog.LoggerProvider
 	name     string
+	levels   []logrus.Level
 }
 
 type Option interface {
@@ -22,6 +24,13 @@ type Option interface {
 type optFunc func(config) config
 
 func (f optFunc) apply(c config) config { return f(c) }
+
+func WithLevels(l []logrus.Level) Option {
+	return optFunc(func(c config) config {
+		c.levels = l
+		return c
+	})
+}
 
 func WithName(name string) Option {
 	return optFunc(func(c config) config {
@@ -36,6 +45,10 @@ func newConfig(cfg *tracker.Config, options []Option) config {
 		c = opt.apply(c)
 	}
 
+	if c.levels == nil {
+		c.levels = logrus.AllLevels
+	}
+
 	if c.name == "" {
 		c.name = loggerName
 	}
@@ -46,7 +59,7 @@ func newConfig(cfg *tracker.Config, options []Option) config {
 	return c
 }
 
-func NewMWOTelCore(config *tracker.Config, options ...Option) *otelzap.Core {
+func NewMWOTelHook(config *tracker.Config, options ...Option) *ol.Hook {
 	cfg := newConfig(config, options)
-	return otelzap.NewCore(cfg.name, otelzap.WithLoggerProvider(cfg.provider))
+	return ol.NewHook(cfg.name, ol.WithLevels(cfg.levels), ol.WithLoggerProvider(cfg.provider))
 }

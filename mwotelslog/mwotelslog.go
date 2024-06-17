@@ -1,40 +1,81 @@
 package mwotelslog
 
 import (
-	"context"
 	"log/slog"
 	"os"
 
-	"github.com/agoda-com/opentelemetry-go/otelslog"
-	"github.com/agoda-com/opentelemetry-logs-go/exporters/otlp/otlplogs"
-	"github.com/agoda-com/opentelemetry-logs-go/exporters/otlp/otlplogs/otlplogsgrpc"
-	sdk "github.com/agoda-com/opentelemetry-logs-go/sdk/logs"
 	"github.com/middleware-labs/golang-apm/tracker"
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	sm "github.com/samber/slog-multi"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+	otellog "go.opentelemetry.io/otel/sdk/log"
 )
 
-type HandlerOptions struct {
-	Level slog.Leveler
+const loggerName = "mwslog"
+const MWTraceID = "traceId"
+const MWSpanID = "spanId"
+
+type config struct {
+	provider    *otellog.LoggerProvider
+	name        string
+	consoleLog  bool
+	handlerOpts *slog.HandlerOptions
 }
 
-// configure common attributes for all logs
-func newResource(config *tracker.Config) *resource.Resource {
-	hostName, _ := os.Hostname()
-	return resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceName(config.ServiceName),
-		semconv.HostName(hostName),
-	)
+type Option interface {
+	apply(config) config
 }
 
-func NewMWOtelHandler(config *tracker.Config, handlerOptions HandlerOptions) *otelslog.OtelHandler {
-	ctx := context.Background()
-	exporter, _ := otlplogs.NewExporter(ctx, otlplogs.WithClient(otlplogsgrpc.NewClient(otlplogsgrpc.WithEndpoint("localhost:9319"))))
-	loggerProvider := sdk.NewLoggerProvider(
-		sdk.WithBatcher(exporter),
-		sdk.WithResource(newResource(config)),
-	)
-	
-	return otelslog.NewOtelHandler(loggerProvider, &otelslog.HandlerOptions{Level: handlerOptions.Level})
+type optFunc func(config) config
+
+func (f optFunc) apply(c config) config { return f(c) }
+
+func WithName(name string) Option {
+	return optFunc(func(c config) config {
+		c.name = name
+		return c
+	})
+}
+
+func WithConsoleLog(ho *slog.HandlerOptions) Option {
+	return optFunc(func(c config) config {
+		c.consoleLog = true
+		c.handlerOpts = ho
+		return c
+	})
+}
+func WithDefaultConsoleLog() Option {
+	return optFunc(func(c config) config {
+		c.consoleLog = true
+		c.handlerOpts = &slog.HandlerOptions{}
+		return c
+	})
+}
+
+func newConfig(cfg *tracker.Config, options []Option) config {
+	var c config
+	for _, opt := range options {
+		c = opt.apply(c)
+	}
+
+	if c.name == "" {
+		c.name = loggerName
+	}
+	if c.provider == nil {
+		c.provider = cfg.Lp
+	}
+
+	return c
+}
+
+func NewMWOTelLogger(config *tracker.Config, options ...Option) *slog.Logger {
+	cfg := newConfig(config, options)
+	if cfg.consoleLog {
+		return slog.New(
+			sm.Fanout(
+				slog.NewTextHandler(os.Stderr, cfg.handlerOpts),
+				otelslog.NewLogger(cfg.name, otelslog.WithLoggerProvider(cfg.provider)).Handler(),
+			),
+		)
+	}
+	return otelslog.NewLogger(cfg.name, otelslog.WithLoggerProvider(cfg.provider))
 }

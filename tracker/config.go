@@ -83,9 +83,6 @@ func newConfig(opts ...Options) *Config {
 	c.enableProfiling = true
 	c.fluentHost = "localhost"
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
-	if profilingServerUrl == "" {
-		profilingServerUrl = "https://profiling.middleware.io"
-	}
 	authUrl := os.Getenv("MW_AUTH_URL")
 	if authUrl == "" {
 		authUrl = "https://app.middleware.io/api/v1/auth"
@@ -214,7 +211,9 @@ func newConfig(opts ...Options) *Config {
 					log.Println("Failed to retrieve TenantID from  api response")
 					return c
 				}
-				profilingServerUrl = fmt.Sprint("https://" + account + ".middleware.io")
+				if profilingServerUrl == "" {
+					profilingServerUrl = fmt.Sprint("https://" + account + ".middleware.io/profiling")
+				}
 				c.TenantID = account
 				_, err := pyroscope.Start(pyroscope.Config{
 					ApplicationName: c.ServiceName,

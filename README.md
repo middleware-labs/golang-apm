@@ -144,3 +144,25 @@ r.GET("/books", func(c *gin.Context) {
 })
 ```
 
+## Pause Default Metrics
+
+```go
+go track.Track(
+		track.WithConfigTag(track.PauseDefaultMetrics,true),
+	)
+```
+## Enable Debug Mode with console log
+
+```go
+go track.Track(
+		track.WithConfigTag(track.Debug, true),
+	)
+```
+## Enable Debug Mode with logs files for Metrics, Traces and Logs
+
+```go
+go track.Track(
+		track.WithConfigTag(track.Debug, true),
+		track.WithConfigTag(track.DebugLogFile, true),
+	)
+```

@@ -3,7 +3,7 @@ package tracker
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -17,15 +17,20 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
+type ConfigTag string
+
 const (
-	PauseMetrics    string = "pauseMetrics"
-	PauseTraces     string = "pauseTraces"
-	PauseLogs       string = "pauseLogs"
-	EnableProfiling string = "enableProfiling"
-	Service         string = "service"
-	Target          string = "target"
-	Project         string = "projectName"
-	Token           string = "accessToken"
+	PauseMetrics        ConfigTag = "pauseMetrics"        // Boolean - disable all metrics
+	PauseDefaultMetrics ConfigTag = "pauseDefaultMetrics" // Boolean - disable default runtime metrics
+	PauseTraces         ConfigTag = "pauseTraces"         // Boolean - disable all traces
+	PauseLogs           ConfigTag = "pauseLogs"           // Boolean - disable all logs
+	PauseProfiling      ConfigTag = "pauseProfiling"      // Boolean - disable profiling
+	Debug               ConfigTag = "debug"               // Boolean - enable debug in console
+	DebugLogFile        ConfigTag = "debugLogFile"        // Boolean - get logs files for debug mode
+	Service             ConfigTag = "service"             // String - Service Name e.g: "My-Service"
+	Target              ConfigTag = "target"              // String - Target e.g: "app.middleware.io:443"
+	Project             ConfigTag = "projectName"         // String - Project Name e.g: "My-Project"
+	Token               ConfigTag = "accessToken"         // String - Token string found at agent installation
 )
 
 type Config struct {
@@ -37,13 +42,19 @@ type Config struct {
 
 	pauseMetrics bool
 
+	pauseDefaultMetrics bool
+
 	pauseTraces bool
 
 	pauseLogs bool
 
-	settings map[string]interface{}
+	settings map[ConfigTag]interface{}
 
-	enableProfiling bool
+	pauseProfiling bool
+
+	debug bool
+
+	debugLogFile bool
 
 	TenantID string
 
@@ -64,10 +75,11 @@ type Config struct {
 
 type Options func(*Config)
 
-func WithConfigTag(k string, v interface{}) Options {
+// Add Config Options using ConfigTag e.g: track.WithConfigTag(track.Service, "my-service")
+func WithConfigTag(k ConfigTag, v interface{}) Options {
 	return func(c *Config) {
 		if c.settings == nil {
-			c.settings = make(map[string]interface{})
+			c.settings = make(map[ConfigTag]interface{})
 		}
 		c.settings[k] = v
 	}
@@ -79,8 +91,9 @@ func doesNotContainHTTP(s string) bool {
 func newConfig(opts ...Options) *Config {
 	c := new(Config)
 	c.pauseMetrics = false
+	c.pauseDefaultMetrics = false
 	c.pauseTraces = false
-	c.enableProfiling = true
+	c.pauseProfiling = false
 	c.fluentHost = "localhost"
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
 	authUrl := os.Getenv("MW_AUTH_URL")
@@ -99,6 +112,13 @@ func newConfig(opts ...Options) *Config {
 			}
 		}
 	}
+	if !c.pauseDefaultMetrics {
+		if v, ok := c.settings["pauseDefaultMetrics"]; ok {
+			if s, ok := v.(bool); ok {
+				c.pauseDefaultMetrics = s
+			}
+		}
+	}
 	if !c.pauseTraces {
 		if v, ok := c.settings["pauseTraces"]; ok {
 			if s, ok := v.(bool); ok {
@@ -113,10 +133,24 @@ func newConfig(opts ...Options) *Config {
 			}
 		}
 	}
-	if c.enableProfiling {
-		if v, ok := c.settings["enableProfiling"]; ok {
+	if !c.pauseProfiling {
+		if v, ok := c.settings["pauseProfiling"]; ok {
 			if s, ok := v.(bool); ok {
-				c.enableProfiling = s
+				c.pauseProfiling = s
+			}
+		}
+	}
+	if !c.debug {
+		if v, ok := c.settings["debug"]; ok {
+			if s, ok := v.(bool); ok {
+				c.debug = s
+			}
+		}
+	}
+	if !c.debugLogFile {
+		if v, ok := c.settings["debugLogFile"]; ok {
+			if s, ok := v.(bool); ok {
+				c.debugLogFile = s
 			}
 		}
 	}
@@ -175,11 +209,11 @@ func newConfig(opts ...Options) *Config {
 		}
 	}
 
-	if c.enableProfiling && c.AccessToken == "" {
+	if !c.pauseProfiling && c.AccessToken == "" {
 		log.Println("Middleware accessToken is required for Profiling")
 	}
 
-	if c.enableProfiling && c.AccessToken != "" {
+	if !c.pauseProfiling && c.AccessToken != "" {
 		req, err := http.NewRequest("POST", authUrl, nil)
 		if err != nil {
 			log.Println("Error creating request:", err)
@@ -194,7 +228,7 @@ func newConfig(opts ...Options) *Config {
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode == 200 {
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				log.Println("Error reading Middleware auth API response")
 				return c

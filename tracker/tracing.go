@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"fmt"
+	"os"
 
 	goErros "github.com/go-errors/errors"
 	"go.opentelemetry.io/contrib/propagators/b3"
@@ -11,6 +12,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 
 	"log"
 	"time"
@@ -23,6 +25,8 @@ import (
 
 type Traces struct{}
 
+var TraceProvider sdktrace.TracerProvider
+
 func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 	collectorURL := c.Host
 	exporter, err := otlptrace.New(
@@ -34,6 +38,20 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 
 	if err != nil {
 		log.Println("failed to create exporter for traces: ", err)
+	}
+	var file *os.File = os.Stdout
+	var consoleExporter *stdouttrace.Exporter
+	if c.debug {
+		if c.debugLogFile {
+			file, err = os.OpenFile("./mw-traces.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+			if err != nil {
+				log.Println("failed to create exporter file for traces: ", err)
+			}
+		}
+		consoleExporter, err = stdouttrace.New(stdouttrace.WithPrettyPrint(), stdouttrace.WithWriter(file))
+		if err != nil {
+			log.Println("failed to create debug console exporter for traces: ", err)
+		}
 	}
 
 	resources, err := resource.New(
@@ -52,13 +70,22 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 		log.Println("failed to set resources for traces:", err)
 	}
 
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithResource(resources),
-		sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter,
-			sdktrace.WithMaxExportBatchSize(10000), sdktrace.WithBatchTimeout(10*time.Second))),
-	)
-	otel.SetTracerProvider(tp)
-	c.Tp = tp
+	if c.debug {
+		TraceProvider = *sdktrace.NewTracerProvider(
+			sdktrace.WithResource(resources),
+			sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter,
+				sdktrace.WithMaxExportBatchSize(10000), sdktrace.WithBatchTimeout(10*time.Second))),
+			sdktrace.WithSpanProcessor(sdktrace.NewSimpleSpanProcessor(consoleExporter)),
+		)
+	} else {
+		TraceProvider = *sdktrace.NewTracerProvider(
+			sdktrace.WithResource(resources),
+			sdktrace.WithSpanProcessor(sdktrace.NewBatchSpanProcessor(exporter,
+				sdktrace.WithMaxExportBatchSize(10000), sdktrace.WithBatchTimeout(10*time.Second))),
+		)
+	}
+	otel.SetTracerProvider(&TraceProvider)
+	c.Tp = &TraceProvider
 
 	p := b3.New()
 	otel.SetTextMapPropagator(

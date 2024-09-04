@@ -4,17 +4,21 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
 	"go.opentelemetry.io/otel/propagation"
 	otellog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
 type Logs struct{}
+
+var LogProvider otellog.LoggerProvider
 
 func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 	host := GetHostLog(c.Host)
@@ -23,6 +27,21 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 	)
 	if err != nil {
 		log.Println("failed to create exporter for logs: ", err)
+	}
+
+	var file *os.File = os.Stdout
+	var consoleExporter *stdoutlog.Exporter
+	if c.debug {
+		if c.debugLogFile {
+			file, err = os.OpenFile("./mw-logs.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+			if err != nil {
+				log.Println("failed to create exporter file for logs: ", err)
+			}
+		}
+		consoleExporter, err = stdoutlog.New(stdoutlog.WithPrettyPrint(), stdoutlog.WithWriter(file))
+		if err != nil {
+			log.Println("failed to create debug console exporter for logs: ", err)
+		}
 	}
 
 	resources, err := resource.New(
@@ -42,12 +61,20 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 		log.Println("failed to set resources for logs:", err)
 	}
 
-	logProvider := otellog.NewLoggerProvider(
-		otellog.WithResource(resources),
-		otellog.WithProcessor(otellog.NewBatchProcessor(exp)),
-	)
+	if c.debug {
+		LogProvider = *otellog.NewLoggerProvider(
+			otellog.WithResource(resources),
+			otellog.WithProcessor(otellog.NewBatchProcessor(consoleExporter)),
+			otellog.WithProcessor(otellog.NewBatchProcessor(exp)),
+		)
+	} else {
+		LogProvider = *otellog.NewLoggerProvider(
+			otellog.WithResource(resources),
+			otellog.WithProcessor(otellog.NewBatchProcessor(exp)),
+		)
+	}
 
-	c.Lp = logProvider
+	c.Lp = &LogProvider
 
 	p := b3.New()
 	otel.SetTextMapPropagator(

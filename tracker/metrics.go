@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"log"
+	"os"
 	"runtime"
 	"runtime/debug"
 	"time"
@@ -12,6 +13,7 @@ import (
 	runtimemetrics "go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	api "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -19,12 +21,29 @@ import (
 
 type Metrics struct{}
 
+var MeterProvider metric.MeterProvider
+
 func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 	exp, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(c.Host),
 	)
 	if err != nil {
 		log.Println("failed to create exporter for metrics: ", err)
+	}
+
+	var file *os.File = os.Stdout
+	var consoleExporter metric.Exporter
+	if c.debug {
+		if c.debugLogFile {
+			file, err = os.OpenFile("./mw-metrics.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+			if err != nil {
+				log.Println("failed to create exporter file for metrics: ", err)
+			}
+		}
+		consoleExporter, err = stdoutmetric.New(stdoutmetric.WithPrettyPrint(), stdoutmetric.WithWriter(file))
+		if err != nil {
+			log.Println("failed to create debug console exporter for metrics: ", err)
+		}
 	}
 
 	resources, err := resource.New(
@@ -44,16 +63,23 @@ func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 		log.Println("failed to set resources for metrics:", err)
 	}
 
-	meterProvider := metric.NewMeterProvider(
-		metric.WithReader(metric.NewPeriodicReader(exp, metric.WithInterval(10*time.Second))),
-		metric.WithResource(resources))
+	if c.debug {
+		MeterProvider = *metric.NewMeterProvider(
+			metric.WithReader(metric.NewPeriodicReader(exp, metric.WithInterval(10*time.Second))),
+			metric.WithReader(metric.NewPeriodicReader(consoleExporter, metric.WithInterval(10*time.Second))),
+			metric.WithResource(resources))
+	} else {
+		MeterProvider = *metric.NewMeterProvider(
+			metric.WithReader(metric.NewPeriodicReader(exp, metric.WithInterval(10*time.Second))),
+			metric.WithResource(resources))
+	}
 
-	c.Mp = meterProvider
+	c.Mp = &MeterProvider
 
-	otel.SetMeterProvider(meterProvider)
+	otel.SetMeterProvider(&MeterProvider)
 
-	if !c.pauseMetrics {
-		err := runtimemetrics.Start(runtimemetrics.WithMeterProvider(meterProvider))
+	if !c.pauseDefaultMetrics {
+		err := runtimemetrics.Start(runtimemetrics.WithMeterProvider(&MeterProvider))
 		if err != nil {
 			log.Println("failed to start runtime metrics:", err)
 		}

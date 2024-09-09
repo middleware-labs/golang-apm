@@ -9,7 +9,7 @@ require (
 	github.com/agoda-com/opentelemetry-logs-go v0.5.0
 	github.com/fluent/fluent-logger-golang v1.9.0
 	github.com/go-errors/errors v1.5.1
-	github.com/grafana/pyroscope-go v1.1.0
+	github.com/grafana/pyroscope-go v1.1.2
 	github.com/samber/slog-multi v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 	go.opentelemetry.io/contrib/bridges/otellogrus v0.2.0
@@ -35,9 +35,9 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/grafana/pyroscope-go/godeltaprof v0.1.6 // indirect
+	github.com/grafana/pyroscope-go/godeltaprof v0.1.8 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
-	github.com/klauspost/compress v1.17.3 // indirect
+	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect

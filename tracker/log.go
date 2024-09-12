@@ -21,9 +21,17 @@ type Logs struct{}
 var LogProvider otellog.LoggerProvider
 
 func (t *Logs) initLogs(ctx context.Context, c *Config) error {
-	host := GetHostLog(c.Host)
+
+	var host string
+
+	if c.isServerless == "0" {
+		host = "http://localhost:9320"
+	} else {
+		host = "https://" + c.Host
+	}
+
 	exp, err := otlploghttp.New(ctx,
-		otlploghttp.WithEndpointURL(fmt.Sprint("http://"+host+"/v1/logs")),
+		otlploghttp.WithEndpointURL(fmt.Sprint(host+"/v1/logs")),
 	)
 	if err != nil {
 		log.Println("failed to create exporter for logs: ", err)
@@ -85,10 +93,4 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 	)
 
 	return err
-}
-
-func GetHostLog(s string) string {
-	suffix := ":9319"
-	s = s[:len(s)-len(suffix)] + ":9320"
-	return s
 }

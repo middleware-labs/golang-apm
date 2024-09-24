@@ -54,17 +54,52 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 		}
 	}
 
+	attributes := []attribute.KeyValue{
+		attribute.String("service.name", c.ServiceName),
+		attribute.String("library.language", "go"),
+		attribute.Bool("mw_agent", true),
+		attribute.String("project.name", c.projectName),
+		attribute.String("mw.account_key", c.AccessToken),
+		attribute.String("mw_serverless", c.isServerless),
+	}
+	
+	for key, value := range c.customResourceAttributes {
+		switch v := value.(type) {
+		case string:
+			attributes = append(attributes, attribute.String(key, v))
+		case bool:
+			attributes = append(attributes, attribute.Bool(key, v))
+		case int:
+			attributes = append(attributes, attribute.Int(key, v)) // handle int
+		case int64:
+			attributes = append(attributes, attribute.Int64(key, v)) // handle int64
+		case float64:
+			attributes = append(attributes, attribute.Float64(key, v)) // handle float64
+		case float32:
+			attributes = append(attributes, attribute.Float64(key, float64(v))) // cast float32 to float64
+		case []string:
+			for _, s := range v {
+				attributes = append(attributes, attribute.String(key, s)) // handle []string by appending each string
+			}
+		case []int:
+			for _, i := range v {
+				attributes = append(attributes, attribute.Int(key, i)) // handle []int by appending each int
+			}
+		case []float64:
+			for _, f := range v {
+				attributes = append(attributes, attribute.Float64(key, f)) // handle []float64 by appending each float64
+			}
+		default:
+			fmt.Printf("Unsupported attribute type for key: %s\n", key)
+		}
+	}
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
-			attribute.String("service.name", c.ServiceName),
-			attribute.String("library.language", "go"),
-			attribute.Bool("mw_agent", true),
-			attribute.String("project.name", c.projectName),
-			attribute.String("mw.account_key", c.AccessToken),
-			attribute.String("mw_serverless", c.isServerless),
+			attributes...
 		),
 	)
+
 
 	if err != nil {
 		log.Println("failed to set resources for traces:", err)
@@ -86,6 +121,7 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 	}
 	otel.SetTracerProvider(&TraceProvider)
 	c.Tp = &TraceProvider
+
 
 	p := b3.New()
 	otel.SetTextMapPropagator(

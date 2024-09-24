@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -31,6 +30,7 @@ const (
 	Target              ConfigTag = "target"              // String - Target e.g: "app.middleware.io:443"
 	Project             ConfigTag = "projectName"         // String - Project Name e.g: "My-Project"
 	Token               ConfigTag = "accessToken"         // String - Token string found at agent installation
+	CustomResourceAttributes ConfigTag = "customResourceAttributes"    // map[string]interface{} 
 )
 
 type Config struct {
@@ -43,6 +43,8 @@ type Config struct {
 	pauseMetrics bool
 
 	pauseDefaultMetrics bool
+
+	customResourceAttributes map[string]interface{} 
 
 	pauseTraces bool
 
@@ -105,6 +107,15 @@ func newConfig(opts ...Options) *Config {
 	for _, fn := range opts {
 		fn(c)
 	}
+
+	if len(c.customResourceAttributes)  == 0{
+			if v, ok := c.settings["customResourceAttributes"]; ok {
+				if s, ok := v.(map[string]interface{}); ok {
+					c.customResourceAttributes = s
+			}
+		}
+    }
+	
 	if !c.pauseMetrics {
 		if v, ok := c.settings["pauseMetrics"]; ok {
 			if s, ok := v.(bool); ok {
@@ -173,19 +184,35 @@ func newConfig(opts ...Options) *Config {
 				target := s
 				if doesNotContainHTTP(target) {
 					target = "https://" + target
-				}
-				parsedURL, err := url.Parse(target)
-				if err != nil {
-					log.Println("url parse error", err)
-				}
-				hostnameParts := strings.SplitN(parsedURL.Hostname(), ".", 2)
-				c.fluentHost = "fluent." + hostnameParts[len(hostnameParts)-1]
-				c.isServerless = "1"
+				 }
+				
+				c.fluentHost = strings.Replace(target, ":443", "", 1) 
+				c.fluentHost = strings.Replace(c.fluentHost, "https://", "", 1)
+			    c.isServerless = "1"
 			}
 		} else {
 			os.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 			c.target = "localhost:9319"
 			c.isServerless = "0"
+			healthAPITarget := "http://localhost:13133/healthcheck"
+			MW_AGENT_SERVICE := os.Getenv("MW_AGENT_SERVICE")
+			if MW_AGENT_SERVICE != "" {
+				healthAPITarget = "http://" + MW_AGENT_SERVICE + ":13133/healthcheck"
+			}
+			req, err := http.NewRequest("GET", healthAPITarget, nil)
+			if err != nil {
+				log.Println("Error creating request:", err)
+			}
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Println("[MW-Agent-debug] [WARNING] MW Agent Health Check is failing ...\nThis could be due to incorrect value of MW_AGENT_SERVICE\nIgnore the warning if you are using MW Agent older than 1.7.7 (You can confirm by running `mw-agent version`)")
+			}
+			defer func() {
+				if resp != nil {
+					resp.Body.Close()
+				}
+			}()
 		}
 	}
 
@@ -249,8 +276,9 @@ func newConfig(opts ...Options) *Config {
 					profilingServerUrl = fmt.Sprint("https://" + account + ".middleware.io/profiling")
 				}
 				c.TenantID = account
+				profilingServiceName := strings.ReplaceAll(c.ServiceName, " ", "-")
 				_, err := pyroscope.Start(pyroscope.Config{
-					ApplicationName: c.ServiceName,
+					ApplicationName: profilingServiceName,
 					ServerAddress:   profilingServerUrl,
 					TenantID:        c.TenantID,
 					ProfileTypes: []pyroscope.ProfileType{

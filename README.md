@@ -1,7 +1,7 @@
 # Install Golang package
 
 ```
-go get github.com/middleware-labs/golang-apm
+go get github.com/middleware-labs/golang-apm@latest
 ```
 
 # Import Tracker
@@ -18,8 +18,7 @@ Add this snippet in your main function
 
 ```
 go track.Track(
-		track.WithConfigTag(track.Service, "your service name"),
-		track.WithConfigTag(track.Project, "your project name"),
+		track.WithConfigTag(track.Service, "your-service-name"),
 		track.WithConfigTag(track.Token, "your API token"),
 	)
 ```

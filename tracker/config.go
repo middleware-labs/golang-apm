@@ -194,6 +194,25 @@ func newConfig(opts ...Options) *Config {
 			os.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 			c.target = "localhost:9319"
 			c.isServerless = "0"
+			healthAPITarget := "http://localhost:13133/healthcheck"
+			MW_AGENT_SERVICE := os.Getenv("MW_AGENT_SERVICE")
+			if MW_AGENT_SERVICE != "" {
+				healthAPITarget = "http://" + MW_AGENT_SERVICE + ":13133/healthcheck"
+			}
+			req, err := http.NewRequest("GET", healthAPITarget, nil)
+			if err != nil {
+				log.Println("Error creating request:", err)
+			}
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Println("[MW-Agent-debug] [WARNING] MW Agent Health Check is failing ...\nThis could be due to incorrect value of MW_AGENT_SERVICE\nIgnore the warning if you are using MW Agent older than 1.7.7 (You can confirm by running `mw-agent version`)")
+			}
+			defer func() {
+				if resp != nil {
+					resp.Body.Close()
+				}
+			}()
 		}
 	}
 

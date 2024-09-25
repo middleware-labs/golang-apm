@@ -26,10 +26,11 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 	var host string
 
 	if c.isServerless == "0" {
-		host = "http://localhost:9320"
+		host = "http://"+c.LogHost+":9320"
 	} else {
 		host = "https://" + c.Host
 	}
+
 
 	exp, err := otlploghttp.New(ctx,
 		otlploghttp.WithEndpointURL(fmt.Sprint(host+"/v1/logs")),

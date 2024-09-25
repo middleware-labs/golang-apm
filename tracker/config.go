@@ -64,6 +64,8 @@ type Config struct {
 
 	target string
 
+	LogHost string
+
 	fluentHost string
 
 	isServerless string
@@ -97,6 +99,7 @@ func newConfig(opts ...Options) *Config {
 	c.pauseTraces = false
 	c.pauseProfiling = false
 	c.fluentHost = "localhost"
+	c.LogHost = "localhost"
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
 	authUrl := os.Getenv("MW_AUTH_URL")
 	if authUrl == "" {
@@ -238,6 +241,7 @@ func newConfig(opts ...Options) *Config {
 	}
 
 	c.Host = getHostValue("MW_AGENT_SERVICE", c.target)
+	c.LogHost = getHostValue("MW_AGENT_SERVICE", c.LogHost)
 
 	if c.projectName == "" {
 		if v, ok := c.settings["projectName"]; ok {

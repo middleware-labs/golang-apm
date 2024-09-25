@@ -19,18 +19,18 @@ import (
 type ConfigTag string
 
 const (
-	PauseMetrics        ConfigTag = "pauseMetrics"        // Boolean - disable all metrics
-	PauseDefaultMetrics ConfigTag = "pauseDefaultMetrics" // Boolean - disable default runtime metrics
-	PauseTraces         ConfigTag = "pauseTraces"         // Boolean - disable all traces
-	PauseLogs           ConfigTag = "pauseLogs"           // Boolean - disable all logs
-	PauseProfiling      ConfigTag = "pauseProfiling"      // Boolean - disable profiling
-	Debug               ConfigTag = "debug"               // Boolean - enable debug in console
-	DebugLogFile        ConfigTag = "debugLogFile"        // Boolean - get logs files for debug mode
-	Service             ConfigTag = "service"             // String - Service Name e.g: "My-Service"
-	Target              ConfigTag = "target"              // String - Target e.g: "app.middleware.io:443"
-	Project             ConfigTag = "projectName"         // String - Project Name e.g: "My-Project"
-	Token               ConfigTag = "accessToken"         // String - Token string found at agent installation
-	CustomResourceAttributes ConfigTag = "customResourceAttributes"    // map[string]interface{} 
+	PauseMetrics             ConfigTag = "pauseMetrics"             // Boolean - disable all metrics
+	PauseDefaultMetrics      ConfigTag = "pauseDefaultMetrics"      // Boolean - disable default runtime metrics
+	PauseTraces              ConfigTag = "pauseTraces"              // Boolean - disable all traces
+	PauseLogs                ConfigTag = "pauseLogs"                // Boolean - disable all logs
+	PauseProfiling           ConfigTag = "pauseProfiling"           // Boolean - disable profiling
+	Debug                    ConfigTag = "debug"                    // Boolean - enable debug in console
+	DebugLogFile             ConfigTag = "debugLogFile"             // Boolean - get logs files for debug mode
+	Service                  ConfigTag = "service"                  // String - Service Name e.g: "My-Service"
+	Target                   ConfigTag = "target"                   // String - Target e.g: "app.middleware.io:443"
+	Project                  ConfigTag = "projectName"              // String - Project Name e.g: "My-Project"
+	Token                    ConfigTag = "accessToken"              // String - Token string found at agent installation
+	CustomResourceAttributes ConfigTag = "customResourceAttributes" // map[string]interface{}
 )
 
 type Config struct {
@@ -44,7 +44,7 @@ type Config struct {
 
 	pauseDefaultMetrics bool
 
-	customResourceAttributes map[string]interface{} 
+	customResourceAttributes map[string]interface{}
 
 	pauseTraces bool
 
@@ -108,19 +108,23 @@ func newConfig(opts ...Options) *Config {
 		fn(c)
 	}
 
-	if len(c.customResourceAttributes)  == 0{
-			if v, ok := c.settings["customResourceAttributes"]; ok {
-				if s, ok := v.(map[string]interface{}); ok {
-					c.customResourceAttributes = s
+	if len(c.customResourceAttributes) == 0 {
+		if v, ok := c.settings["customResourceAttributes"]; ok {
+			if s, ok := v.(map[string]interface{}); ok {
+				c.customResourceAttributes = s
 			}
 		}
-    }
-	
+	}
+
 	if !c.pauseMetrics {
 		if v, ok := c.settings["pauseMetrics"]; ok {
 			if s, ok := v.(bool); ok {
 				c.pauseMetrics = s
 			}
+		}
+		// To set pauseMetrics via MW_APM_COLLECT_METRICS environment variable
+		if parsedValue, err := strconv.ParseBool(os.Getenv("MW_APM_COLLECT_METRICS")); err == nil {
+			c.pauseMetrics = !parsedValue
 		}
 	}
 	if !c.pauseDefaultMetrics {
@@ -135,6 +139,10 @@ func newConfig(opts ...Options) *Config {
 			if s, ok := v.(bool); ok {
 				c.pauseTraces = s
 			}
+			// To set pauseTraces via MW_APM_COLLECT_TRACES environment variable
+			if parsedValue, err := strconv.ParseBool(os.Getenv("MW_APM_COLLECT_TRACES")); err == nil {
+				c.pauseTraces = !parsedValue
+			}
 		}
 	}
 	if !c.pauseLogs {
@@ -143,12 +151,20 @@ func newConfig(opts ...Options) *Config {
 				c.pauseLogs = s
 			}
 		}
+		// To set pauseLogs via MW_APM_COLLECT_LOGS environment variable
+		if parsedValue, err := strconv.ParseBool(os.Getenv("MW_APM_COLLECT_LOGS")); err == nil {
+			c.pauseLogs = !parsedValue
+		}
 	}
 	if !c.pauseProfiling {
 		if v, ok := c.settings["pauseProfiling"]; ok {
 			if s, ok := v.(bool); ok {
 				c.pauseProfiling = s
 			}
+		}
+		// To set pauseProfiling via MW_APM_COLLECT_PROFILING environment variable
+		if parsedValue, err := strconv.ParseBool(os.Getenv("MW_APM_COLLECT_PROFILING")); err == nil {
+			c.pauseProfiling = !parsedValue
 		}
 	}
 	if !c.debug {
@@ -174,6 +190,12 @@ func newConfig(opts ...Options) *Config {
 		} else {
 			c.ServiceName = "Service-" + pid
 		}
+		// To set service name via ENV, MW_SERVICE_NAME will have a lower priority compared to OTEL_SERVICE_NAME
+		if envServiceName := os.Getenv("OTEL_SERVICE_NAME"); envServiceName != "" {
+			c.ServiceName = envServiceName
+		} else if envServiceName := os.Getenv("MW_SERVICE_NAME"); envServiceName != "" {
+			c.ServiceName = envServiceName
+		}
 	}
 
 	if c.target == "" {
@@ -184,11 +206,10 @@ func newConfig(opts ...Options) *Config {
 				target := s
 				if doesNotContainHTTP(target) {
 					target = "https://" + target
-				 }
-				
-				c.fluentHost = strings.Replace(target, ":443", "", 1) 
+				}
+				c.fluentHost = strings.Replace(target, ":443", "", 1)
 				c.fluentHost = strings.Replace(c.fluentHost, "https://", "", 1)
-			    c.isServerless = "1"
+				c.isServerless = "1"
 			}
 		} else {
 			os.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
@@ -234,6 +255,10 @@ func newConfig(opts ...Options) *Config {
 				c.AccessToken = s
 			}
 		}
+		// To set the AccessToken via MW_API_KEY environment variable
+		if envAccessToken := os.Getenv("MW_API_KEY"); envAccessToken != "" {
+			c.AccessToken = envAccessToken
+		}
 	}
 
 	if !c.pauseProfiling && c.AccessToken == "" {
@@ -267,15 +292,15 @@ func newConfig(opts ...Options) *Config {
 				return c
 			}
 			if data["success"] == true {
-				account, ok := data["data"].(map[string]interface{})["account"].(string)
+				project_uid, ok := data["data"].(map[string]interface{})["project_uid"].(string)
 				if !ok {
 					log.Println("Failed to retrieve TenantID from  api response")
 					return c
 				}
 				if profilingServerUrl == "" {
-					profilingServerUrl = fmt.Sprint("https://" + account + ".middleware.io/profiling")
+					profilingServerUrl = fmt.Sprint("https://" + project_uid + ".middleware.io/profiling")
 				}
-				c.TenantID = account
+				c.TenantID = project_uid
 				profilingServiceName := strings.ReplaceAll(c.ServiceName, " ", "-")
 				_, err := pyroscope.Start(pyroscope.Config{
 					ApplicationName: profilingServiceName,

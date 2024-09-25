@@ -1,9 +1,11 @@
 package tracker
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	goErros "github.com/go-errors/errors"
 	"go.opentelemetry.io/contrib/propagators/b3"
@@ -33,6 +35,8 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 		ctx,
 		otlptracegrpc.NewClient(
 			otlptracegrpc.WithEndpoint(collectorURL),
+			// Gzip Compression
+			otlptracegrpc.WithCompressor("gzip"),
 		),
 	)
 
@@ -62,7 +66,7 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 		attribute.String("mw.account_key", c.AccessToken),
 		attribute.String("mw_serverless", c.isServerless),
 	}
-	
+
 	for key, value := range c.customResourceAttributes {
 		switch v := value.(type) {
 		case string:
@@ -93,13 +97,27 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 			fmt.Printf("Unsupported attribute type for key: %s\n", key)
 		}
 	}
+	
+	// Get the MW_CUSTOM_RESOURCE_ATTRIBUTES environment variable
+	envResourceAttributes := os.Getenv("MW_CUSTOM_RESOURCE_ATTRIBUTES")
+	// Split the attributes by comma
+	attrs := strings.Split(envResourceAttributes, ",")
+	for _, attr := range attrs {
+		// Split each attribute by the '=' character
+		kv := strings.SplitN(attr, "=", 2)
+		if len(kv) == 2 {
+			key := strings.TrimSpace(kv[0])
+			value := strings.TrimSpace(kv[1])
+			attributes = append(attributes, attribute.String(key, value))
+		}
+	}
+
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
-			attributes...
+			attributes...,
 		),
 	)
-
 
 	if err != nil {
 		log.Println("failed to set resources for traces:", err)
@@ -121,7 +139,6 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 	}
 	otel.SetTracerProvider(&TraceProvider)
 	c.Tp = &TraceProvider
-
 
 	p := b3.New()
 	otel.SetTextMapPropagator(
@@ -175,15 +192,6 @@ func ErrorRecording(ctx context.Context, err error) {
 		)
 		span.SetStatus(codes.Error, err.Error())
 	}
-}
-
-func RecordError(ctx context.Context, err error) trace.Span {
-	span := trace.SpanFromContext(ctx)
-	if err != nil {
-		span.RecordError(err, trace.WithStackTrace(true))
-		span.SetStatus(codes.Error, err.Error())
-	}
-	return span
 }
 
 func SetAttribute(ctx context.Context, name string, value string) {

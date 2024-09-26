@@ -73,8 +73,6 @@ type Config struct {
 
 	isServerless string
 
-	SdkVersion string
-
 	Tp *sdktrace.TracerProvider
 
 	Mp *sdkmetric.MeterProvider
@@ -105,13 +103,6 @@ func newConfig(opts ...Options) *Config {
 	c.pauseProfiling = false
 	c.fluentHost = "localhost"
 	c.LogHost = "localhost"
-	c.SdkVersion = "v1.0.0"
-	SdkVersion , err := getLatestVersion("github.com/middleware-labs/golang-apm")
-	if err != nil {
-        log.Println("Error: %v", err)
-    }else{
-		c.SdkVersion = SdkVersion
-	}
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
 	authUrl := os.Getenv("MW_AUTH_URL")
 	if authUrl == "" {
@@ -347,32 +338,3 @@ func getHostValue(key, defaultValue string) string {
 	return value + ":9319"
 }
 
-
-func getLatestVersion(module string) (string, error) {
-    url := fmt.Sprintf("https://proxy.golang.org/%s/@latest", module)
-    resp, err := http.Get(url)
-    if err != nil {
-        return "", err
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode != http.StatusOK {
-        return "", fmt.Errorf("failed to get latest version: %s", resp.Status)
-    }
-
-    var result struct {
-        Version string `json:"version"`
-    }
-
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        return "", err
-    }
-
-    // Parse the response JSON to get the version number
-    if err := json.Unmarshal(body, &result); err != nil {
-        return "", err
-    }
-
-    return result.Version, nil
-}

@@ -67,7 +67,6 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 		attribute.String("mw.app.lang", "go"),
 		attribute.String("mw.account_key", c.AccessToken),
 		attribute.String("mw_serverless", c.isServerless),
-		attribute.String("mw.sdk.version", c.SdkVersion),	
 	}
 
 	for key, value := range c.customResourceAttributes {

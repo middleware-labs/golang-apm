@@ -1,7 +1,6 @@
 package tracker
 
 import (
-	"compress/gzip"
 	"context"
 	"fmt"
 	"os"

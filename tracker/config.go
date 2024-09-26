@@ -2,7 +2,6 @@ package tracker
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"io/ioutil"
 
 
 	"github.com/grafana/pyroscope-go"

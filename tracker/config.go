@@ -102,6 +102,7 @@ func newConfig(opts ...Options) *Config {
 	c.fluentHost = "localhost"
 	c.LogHost = "localhost"
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
+	MW_AGENT_SERVICE := os.Getenv("MW_AGENT_SERVICE")
 	authUrl := os.Getenv("MW_AUTH_URL")
 	if authUrl == "" {
 		authUrl = "https://app.middleware.io/api/v1/auth"
@@ -220,7 +221,6 @@ func newConfig(opts ...Options) *Config {
 			c.target = "localhost:9319"
 			c.isServerless = "0"
 			healthAPITarget := "http://localhost:13133/healthcheck"
-			MW_AGENT_SERVICE := os.Getenv("MW_AGENT_SERVICE")
 			if MW_AGENT_SERVICE != "" {
 				healthAPITarget, _ = url.JoinPath("http://"+MW_AGENT_SERVICE+":13133", "healthcheck")
 			}
@@ -242,7 +242,9 @@ func newConfig(opts ...Options) *Config {
 	}
 
 	c.Host = getHostValue("MW_AGENT_SERVICE", c.target)
-	c.LogHost = getHostValue("MW_AGENT_SERVICE", c.LogHost)
+	if(MW_AGENT_SERVICE != ""){
+		c.LogHost = MW_AGENT_SERVICE
+	}
 
 	if c.projectName == "" {
 		if v, ok := c.settings["projectName"]; ok {

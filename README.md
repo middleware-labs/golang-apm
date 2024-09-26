@@ -37,7 +37,7 @@ go track.Track(
 ```go
     config, _ := track.Track(
 		track.WithConfigTag(track.Service, "your service name"),
-		track.WithConfigTag(track.Project, "your project name"),
+		track.WithConfigTag(track.Token, "your API token"),
 	)
 
 	logger := mwotelslog.NewMWOTelLogger(
@@ -58,7 +58,6 @@ See [mwotelslog](https://github.com/middleware-labs/demo-apm/tree/master/golang/
 ```go
      config, _ := track.Track(
 		track.WithConfigTag(track.Service, "your service name"),
-		track.WithConfigTag(track.Project, "your project name"),
 		track.WithConfigTag(track.Token, "your token"),
 	)
 
@@ -75,8 +74,8 @@ See [mwotelzap](https://github.com/middleware-labs/demo-apm/tree/master/golang/f
 ```go
     config, _ := track.Track(
 		track.WithConfigTag(track.Service, "your service name"),
-		track.WithConfigTag(track.Project, "your project name"),
-	)
+		track.WithConfigTag(track.Token, "your API token"),
+=	)
 	hook := mwotelzerolog.NewMWOTelHook(config)
 	logger := log.Hook(hook)
 ```
@@ -90,7 +89,7 @@ See [mwotelzerolog](https://github.com/middleware-labs/demo-apm/tree/master/gola
 ```go
      config, _ := track.Track(
 		track.WithConfigTag(track.Service, "your service name"),
-		track.WithConfigTag(track.Project, "your project name"),
+		track.WithConfigTag(track.Token, "your API token"),
 	)
 
 	logHook := otellog.NewMWOTelHook(config, otellog.WithLevels(log.AllLevels), otellog.WithName("otellogrus"))
@@ -115,53 +114,34 @@ simply add this one config to your track.Track() call
 track.WithConfigTag(track.Token, "{ACCOUNT_KEY}"),
 ```
 
-## Custom Logs
-
-To ingest custom logs into Middleware, you can use library functions as given below.
-
-```
-"github.com/middleware-labs/golang-apm/logger"
-
-....
-
-logger.Error("Error")
-logger.Info("Info")
-logger.Warn("Warn")
-
-```
-
 ## Stack Error
 
-If you want to record exception in traces then you can use track.RecordError(ctx,error) method.
+If you want to record exception in traces then you can use track.ErrorRecording(ctx,error) method.
 
-```
-r.GET("/books", func(c *gin.Context) {
-    ctx := req.Context()
-    if err := db.Ping(ctx); err != nil {
-        track.RecordError(ctx, err)
-    }
-})
+```go
+err := errors.New("something went wrong")
+track.ErrorRecording(ctx, err)
 ```
 
 ## Pause Default Metrics
 
 ```go
 go track.Track(
-		track.WithConfigTag(track.PauseDefaultMetrics,true),
-	)
+	track.WithConfigTag(track.PauseDefaultMetrics,true),
+)
 ```
 ## Enable Debug Mode with console log
 
 ```go
 go track.Track(
-		track.WithConfigTag(track.Debug, true),
-	)
+	track.WithConfigTag(track.Debug, true),
+)
 ```
 ## Enable Debug Mode with logs files for Metrics, Traces and Logs
 
 ```go
 go track.Track(
-		track.WithConfigTag(track.Debug, true),
-		track.WithConfigTag(track.DebugLogFile, true),
-	)
+	 track.WithConfigTag(track.Debug, true),
+     track.WithConfigTag(track.DebugLogFile, true),
+)
 ```

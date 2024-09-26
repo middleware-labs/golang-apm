@@ -73,7 +73,7 @@ type Config struct {
 
 	isServerless string
 
-	SdkVesion string
+	SdkVersion string
 
 	Tp *sdktrace.TracerProvider
 
@@ -105,12 +105,12 @@ func newConfig(opts ...Options) *Config {
 	c.pauseProfiling = false
 	c.fluentHost = "localhost"
 	c.LogHost = "localhost"
-	c.SdkVesion = "v1.0.0"
-	sdkVesion , err := getLatestVersion("github.com/middleware-labs/golang-apm")
+	c.SdkVersion = "v1.0.0"
+	SdkVersion , err := getLatestVersion("github.com/middleware-labs/golang-apm")
 	if err != nil {
         log.Println("Error: %v", err)
     }else{
-		c.SdkVesion = sdkVesion
+		c.SdkVersion = SdkVersion
 	}
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
 	authUrl := os.Getenv("MW_AUTH_URL")

@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -17,15 +18,22 @@ import (
 	api "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
+
+
 )
 
-type Metrics struct{}
+type Metrics struct {
+	meter  api.Meter
+	gauges map[string]api.Float64ObservableGauge
+}
 
 var MeterProvider metric.MeterProvider
 
 func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 	exp, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(c.Host),
+		// Gzip Compression
+		otlpmetricgrpc.WithCompressor("gzip"),
 	)
 	if err != nil {
 		log.Println("failed to create exporter for metrics: ", err)
@@ -88,6 +96,20 @@ func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 		}
 	}
 
+	// Get the MW_CUSTOM_RESOURCE_ATTRIBUTES environment variable
+	envResourceAttributes := os.Getenv("MW_CUSTOM_RESOURCE_ATTRIBUTES")
+	// Split the attributes by comma
+	attrs := strings.Split(envResourceAttributes, ",")
+	for _, attr := range attrs {
+		// Split each attribute by the '=' character
+		kv := strings.SplitN(attr, "=", 2)
+		if len(kv) == 2 {
+			key := strings.TrimSpace(kv[0])
+			value := strings.TrimSpace(kv[1])
+			attributes = append(attributes, attribute.String(key, value))
+		}
+	}
+
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
@@ -119,83 +141,158 @@ func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 			log.Println("failed to start runtime metrics:", err)
 		}
 
+		metrics := NewMetrics()
+		metrics.Initialize()
 
-		tick := time.NewTicker(10 * time.Second)
-		defer tick.Stop()
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-		for {
-			select {
-			case <-tick.C:
-				t.collectMetrics(ctx)
-			case <-ctx.Done(): // Exit when the context is canceled
-				return nil
+		// Start collecting metrics every 10 seconds
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					// Trigger collection if needed, but it's handled by the callback
+				case <-ctx.Done():
+					return
+				}
 			}
-		}
+		}()
+
+		// Simulate the main application running
+		select {}
 
 	}
 	return nil
 }
 
-func (t *Metrics) collectMetrics(ctx context.Context) {
-	var ms runtime.MemStats
-	gc := debug.GCStats{
-		PauseQuantiles: make([]time.Duration, 5),
-	}
-	debug.ReadGCStats(&gc)
-	runtime.ReadMemStats(&ms)
-	t.createMetric("num_cpu", float64(runtime.NumCPU()))
-	t.createMetric("num_goroutine", float64(runtime.NumGoroutine()))
-	t.createMetric("num_cgo_call", float64(runtime.NumCgoCall()))
-
-	// Memory stats
-	t.createMetric("mem_stats.alloc", float64(ms.Alloc))
-	t.createMetric("mem_stats.total_alloc", float64(ms.TotalAlloc))
-	t.createMetric("mem_stats.sys", float64(ms.Sys))
-	t.createMetric("mem_stats.lookups", float64(ms.Lookups))
-	t.createMetric("mem_stats.mallocs", float64(ms.Mallocs))
-	t.createMetric("mem_stats.frees", float64(ms.Frees))
-
-	//  Heap memory statistics
-	t.createMetric("mem_stats.heap_alloc", float64(ms.HeapAlloc))
-	t.createMetric("mem_stats.heap_sys", float64(ms.HeapSys))
-	t.createMetric("mem_stats.heap_idle", float64(ms.HeapIdle))
-	t.createMetric("mem_stats.heap_inuse", float64(ms.HeapInuse))
-	t.createMetric("mem_stats.heap_released", float64(ms.HeapReleased))
-	t.createMetric("mem_stats.heap_objects", float64(ms.HeapObjects))
-	// Stack memory statistics
-	t.createMetric("mem_stats.stack_inuse", float64(ms.StackInuse))
-	t.createMetric("mem_stats.stack_sys", float64(ms.StackSys))
-	// Off-heap memory statistics
-	t.createMetric("mem_stats.m_span_inuse", float64(ms.MSpanInuse))
-	t.createMetric("mem_stats.m_span_sys", float64(ms.MSpanSys))
-	t.createMetric("mem_stats.m_cache_inuse", float64(ms.MCacheInuse))
-	t.createMetric("mem_stats.m_cache_sys", float64(ms.MCacheSys))
-	t.createMetric("mem_stats.buck_hash_sys", float64(ms.BuckHashSys))
-	t.createMetric("mem_stats.gc_sys", float64(ms.GCSys))
-	t.createMetric("mem_stats.other_sys", float64(ms.OtherSys))
-	// Garbage collector statistics
-	t.createMetric("mem_stats.next_gc", float64(ms.NextGC))
-	t.createMetric("mem_stats.last_gc", float64(ms.LastGC))
-	t.createMetric("mem_stats.pause_total_ns", float64(ms.PauseTotalNs))
-	t.createMetric("mem_stats.num_gc", float64(ms.NumGC))
-	t.createMetric("mem_stats.num_forced_gc", float64(ms.NumForcedGC))
-	t.createMetric("mem_stats.gc_cpu_fraction", ms.GCCPUFraction)
-	for i, p := range []string{"min", "25p", "50p", "75p", "max"} {
-		t.createMetric("gc_stats.pause_quantiles."+p, float64(gc.PauseQuantiles[i]))
+func NewMetrics() *Metrics {
+	meter := otel.Meter("golang-agent")
+	return &Metrics{
+		meter:  meter,
+		gauges: make(map[string]api.Float64ObservableGauge),
 	}
 }
 
-func (t *Metrics) createMetric(name string, value float64) {
-	meter := otel.Meter("golang-agent")
-	gauge, err := meter.Float64ObservableGauge(name, api.WithDescription(""))
-	if err != nil {
-		log.Println(err)
+func (t *Metrics) Initialize() {
+	// Create gauges for all metrics once
+	metricNames := []string{
+		"num_cpu",
+		"num_goroutine",
+		"num_cgo_call",
+		"mem_stats.alloc",
+		"mem_stats.total_alloc",
+		"mem_stats.sys",
+		"mem_stats.lookups",
+		"mem_stats.mallocs",
+		"mem_stats.frees",
+		"mem_stats.heap_alloc",
+		"mem_stats.heap_sys",
+		"mem_stats.heap_idle",
+		"mem_stats.heap_inuse",
+		"mem_stats.heap_released",
+		"mem_stats.heap_objects",
+		"mem_stats.stack_inuse",
+		"mem_stats.stack_sys",
+		"mem_stats.m_span_inuse",
+		"mem_stats.m_span_sys",
+		"mem_stats.m_cache_inuse",
+		"mem_stats.m_cache_sys",
+		"mem_stats.buck_hash_sys",
+		"mem_stats.gc_sys",
+		"mem_stats.other_sys",
+		"mem_stats.next_gc",
+		"mem_stats.last_gc",
+		"mem_stats.pause_total_ns",
+		"mem_stats.num_gc",
+		"mem_stats.num_forced_gc",
+		"mem_stats.gc_cpu_fraction",
+		"gc_stats.pause_quantiles.min",
+		"gc_stats.pause_quantiles.25p",
+		"gc_stats.pause_quantiles.50p",
+		"gc_stats.pause_quantiles.75p",
+		"gc_stats.pause_quantiles.max",
 	}
-	_, err = meter.RegisterCallback(func(_ context.Context, o api.Observer) error {
-		o.ObserveFloat64(gauge, value)
-		return nil
-	}, gauge)
-	if err != nil {
-		log.Println(err)
+
+	for _, name := range metricNames {
+		gauge, err := t.meter.Float64ObservableGauge(name, api.WithDescription(name))
+		if err != nil {
+			log.Println("Failed to create gauge:", err)
+			return
+		}
+		t.gauges[name] = gauge
 	}
+
+	// Create a slice to hold the Observable values
+	observables := make([]api.Observable, 0, len(t.gauges))
+	for _, gauge := range t.gauges {
+		observables = append(observables, gauge)
+	}
+	
+	// Register a single callback for all gauges
+	_, err := t.meter.RegisterCallback(t.collectMetrics, observables...)
+	if err != nil {
+		log.Println("Failed to register callback:", err)
+	}
+}
+
+func (t *Metrics) collectMetrics(ctx context.Context, observer api.Observer) error {
+    var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+
+	observer.ObserveFloat64(t.gauges["num_cpu"], float64(runtime.NumCPU()))
+	observer.ObserveFloat64(t.gauges["num_goroutine"], float64(runtime.NumGoroutine()))
+	observer.ObserveFloat64(t.gauges["num_cgo_call"], float64(runtime.NumCgoCall()))
+
+	// Memory stats
+	observer.ObserveFloat64(t.gauges["mem_stats.alloc"], float64(ms.Alloc))
+	observer.ObserveFloat64(t.gauges["mem_stats.total_alloc"], float64(ms.TotalAlloc))
+	observer.ObserveFloat64(t.gauges["mem_stats.sys"], float64(ms.Sys))
+	observer.ObserveFloat64(t.gauges["mem_stats.lookups"], float64(ms.Lookups))
+	observer.ObserveFloat64(t.gauges["mem_stats.mallocs"], float64(ms.Mallocs))
+	observer.ObserveFloat64(t.gauges["mem_stats.frees"], float64(ms.Frees))
+
+	// Heap memory statistics
+	observer.ObserveFloat64(t.gauges["mem_stats.heap_alloc"], float64(ms.HeapAlloc))
+	observer.ObserveFloat64(t.gauges["mem_stats.heap_sys"], float64(ms.HeapSys))
+	observer.ObserveFloat64(t.gauges["mem_stats.heap_idle"], float64(ms.HeapIdle))
+	observer.ObserveFloat64(t.gauges["mem_stats.heap_inuse"], float64(ms.HeapInuse))
+	observer.ObserveFloat64(t.gauges["mem_stats.heap_released"], float64(ms.HeapReleased))
+	observer.ObserveFloat64(t.gauges["mem_stats.heap_objects"], float64(ms.HeapObjects))
+
+	// Stack memory statistics
+	observer.ObserveFloat64(t.gauges["mem_stats.stack_inuse"], float64(ms.StackInuse))
+	observer.ObserveFloat64(t.gauges["mem_stats.stack_sys"], float64(ms.StackSys))
+
+	// Off-heap memory statistics
+	observer.ObserveFloat64(t.gauges["mem_stats.m_span_inuse"], float64(ms.MSpanInuse))
+	observer.ObserveFloat64(t.gauges["mem_stats.m_span_sys"], float64(ms.MSpanSys))
+	observer.ObserveFloat64(t.gauges["mem_stats.m_cache_inuse"], float64(ms.MCacheInuse))
+	observer.ObserveFloat64(t.gauges["mem_stats.m_cache_sys"], float64(ms.MCacheSys))
+	observer.ObserveFloat64(t.gauges["mem_stats.buck_hash_sys"], float64(ms.BuckHashSys))
+	observer.ObserveFloat64(t.gauges["mem_stats.gc_sys"], float64(ms.GCSys))
+	observer.ObserveFloat64(t.gauges["mem_stats.other_sys"], float64(ms.OtherSys))
+
+	// Garbage collector statistics
+	observer.ObserveFloat64(t.gauges["mem_stats.next_gc"], float64(ms.NextGC))
+	observer.ObserveFloat64(t.gauges["mem_stats.last_gc"], float64(ms.LastGC))
+	observer.ObserveFloat64(t.gauges["mem_stats.pause_total_ns"], float64(ms.PauseTotalNs))
+	observer.ObserveFloat64(t.gauges["mem_stats.num_gc"], float64(ms.NumGC))
+	observer.ObserveFloat64(t.gauges["mem_stats.num_forced_gc"], float64(ms.NumForcedGC))
+	observer.ObserveFloat64(t.gauges["mem_stats.gc_cpu_fraction"], ms.GCCPUFraction)
+
+	// Collect GC pause quantiles
+	var gc debug.GCStats
+	debug.ReadGCStats(&gc)
+
+	// Check the length of PauseQuantiles before accessing
+	if len(gc.PauseQuantiles) >= 5 {
+		for i, p := range []string{"min", "25p", "50p", "75p", "max"} {
+			observer.ObserveFloat64(t.gauges["gc_stats.pause_quantiles."+p], float64(gc.PauseQuantiles[i]))
+		}
+	}
+	return nil
 }

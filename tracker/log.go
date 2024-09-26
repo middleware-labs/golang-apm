@@ -1,10 +1,12 @@
 package tracker
 
 import (
+	"net/url"
 	"context"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
@@ -25,13 +27,17 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 	var host string
 
 	if c.isServerless == "0" {
-		host = "http://localhost:9320"
+		host, _ = url.JoinPath("http://"+c.LogHost+":9320", "v1", "logs")
+
+
 	} else {
-		host = "https://" + c.Host
+		host, _ = url.JoinPath("https://"+c.Host, "v1", "logs")
 	}
 
 	exp, err := otlploghttp.New(ctx,
-		otlploghttp.WithEndpointURL(fmt.Sprint(host+"/v1/logs")),
+		otlploghttp.WithEndpointURL(host),
+		// Gzip Compression
+		otlploghttp.WithCompression(otlploghttp.GzipCompression),
 	)
 	if err != nil {
 		log.Println("failed to create exporter for logs: ", err)
@@ -91,6 +97,20 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 			}
 		default:
 			fmt.Printf("Unsupported attribute type for key: %s\n", key)
+		}
+	}
+
+	// Get the MW_CUSTOM_RESOURCE_ATTRIBUTES environment variable
+	envResourceAttributes := os.Getenv("MW_CUSTOM_RESOURCE_ATTRIBUTES")
+	// Split the attributes by comma
+	attrs := strings.Split(envResourceAttributes, ",")
+	for _, attr := range attrs {
+		// Split each attribute by the '=' character
+		kv := strings.SplitN(attr, "=", 2)
+		if len(kv) == 2 {
+			key := strings.TrimSpace(kv[0])
+			value := strings.TrimSpace(kv[1])
+			attributes = append(attributes, attribute.String(key, value))
 		}
 	}
 

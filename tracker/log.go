@@ -1,6 +1,7 @@
 package tracker
 
 import (
+	"net/url"
 	"context"
 	"fmt"
 	"log"
@@ -26,14 +27,15 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 	var host string
 
 	if c.isServerless == "0" {
-		host = "http://"+c.LogHost+":9320"
+		host, _ = url.JoinPath("http://"+c.LogHost+":9320", "v1", "logs")
+
+
 	} else {
-		host = "https://" + c.Host
+		host, _ = url.JoinPath("https://"+c.Host, "v1", "logs")
 	}
 
-
 	exp, err := otlploghttp.New(ctx,
-		otlploghttp.WithEndpointURL(fmt.Sprint(host+"/v1/logs")),
+		otlploghttp.WithEndpointURL(host),
 		// Gzip Compression
 		otlploghttp.WithCompression(otlploghttp.GzipCompression),
 	)
@@ -65,6 +67,7 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 		attribute.String("mw.app.lang", "go"),
 		attribute.String("mw.account_key", c.AccessToken),
 		attribute.String("mw_serverless", c.isServerless),
+		attribute.String("mw.sdk.version", c.SdkVesion),	
 	}
 
 	for key, value := range c.customResourceAttributes {

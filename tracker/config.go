@@ -6,9 +6,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"io/ioutil"
+
 
 	"github.com/grafana/pyroscope-go"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -70,6 +73,8 @@ type Config struct {
 
 	isServerless string
 
+	SdkVesion string
+
 	Tp *sdktrace.TracerProvider
 
 	Mp *sdkmetric.MeterProvider
@@ -100,6 +105,13 @@ func newConfig(opts ...Options) *Config {
 	c.pauseProfiling = false
 	c.fluentHost = "localhost"
 	c.LogHost = "localhost"
+	c.SdkVesion = "v1.0.0"
+	sdkVesion , err := getLatestVersion("github.com/middleware-labs/golang-apm")
+	if err != nil {
+        log.Println("Error: %v", err)
+    }else{
+		c.SdkVesion = sdkVesion
+	}
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
 	authUrl := os.Getenv("MW_AUTH_URL")
 	if authUrl == "" {
@@ -221,7 +233,7 @@ func newConfig(opts ...Options) *Config {
 			healthAPITarget := "http://localhost:13133/healthcheck"
 			MW_AGENT_SERVICE := os.Getenv("MW_AGENT_SERVICE")
 			if MW_AGENT_SERVICE != "" {
-				healthAPITarget = "http://" + MW_AGENT_SERVICE + ":13133/healthcheck"
+				healthAPITarget, _ = url.JoinPath("http://"+MW_AGENT_SERVICE+":13133", "healthcheck")
 			}
 			req, err := http.NewRequest("GET", healthAPITarget, nil)
 			if err != nil {
@@ -302,7 +314,7 @@ func newConfig(opts ...Options) *Config {
 					return c
 				}
 				if profilingServerUrl == "" {
-					profilingServerUrl = fmt.Sprint("https://" + project_uid + ".middleware.io/profiling")
+					profilingServerUrl, _ = url.JoinPath("https://"+project_uid+".middleware.io", "profiling")
 				}
 				c.TenantID = project_uid
 				profilingServiceName := strings.ReplaceAll(c.ServiceName, " ", "-")
@@ -333,4 +345,34 @@ func getHostValue(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value + ":9319"
+}
+
+
+func getLatestVersion(module string) (string, error) {
+    url := fmt.Sprintf("https://proxy.golang.org/%s/@latest", module)
+    resp, err := http.Get(url)
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return "", fmt.Errorf("failed to get latest version: %s", resp.Status)
+    }
+
+    var result struct {
+        Version string `json:"version"`
+    }
+
+    body, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        return "", err
+    }
+
+    // Parse the response JSON to get the version number
+    if err := json.Unmarshal(body, &result); err != nil {
+        return "", err
+    }
+
+    return result.Version, nil
 }

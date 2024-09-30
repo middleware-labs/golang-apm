@@ -132,6 +132,10 @@ func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 	}
 
 	c.Mp = &MeterProvider
+	
+	if otel.GetMeterProvider() == nil {
+        otel.SetMeterProvider(c.Mp)
+    }
 
 	if !c.pauseDefaultMetrics {
 		err := runtimemetrics.Start(runtimemetrics.WithMeterProvider(&MeterProvider))

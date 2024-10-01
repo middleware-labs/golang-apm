@@ -219,8 +219,10 @@ func (t *Metrics) Initialize() {
 		"gc_stats.pause_quantiles.max",
 	}
 
+	meter := MeterProvider.Meter("github.com/middleware-labs/golang-apm")
+
 	for _, name := range metricNames {
-		gauge, err := t.meter.Float64ObservableGauge(name, api.WithDescription(name))
+		gauge, err := meter.Float64ObservableGauge(name, api.WithDescription(name))
 		if err != nil {
 			log.Println("Failed to create gauge:", err)
 			return
@@ -235,7 +237,7 @@ func (t *Metrics) Initialize() {
 	}
 	
 	// Register a single callback for all gauges
-	_, err := t.meter.RegisterCallback(t.collectMetrics, observables...)
+	_, err := meter.RegisterCallback(t.collectMetrics, observables...)
 	if err != nil {
 		log.Println("Failed to register callback:", err)
 	}

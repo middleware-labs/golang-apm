@@ -17,9 +17,8 @@ import (
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	api "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
-
-
 )
 
 type Metrics struct {
@@ -27,11 +26,12 @@ type Metrics struct {
 	gauges map[string]api.Float64ObservableGauge
 }
 
-var MeterProvider metric.MeterProvider
+var MeterProvider api.MeterProvider
 
 func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 	exp, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(c.Host),
+		otlpmetricgrpc.WithTemporalitySelector(deltaSelector),
 		// Gzip Compression
 		otlpmetricgrpc.WithCompressor("gzip"),
 	)
@@ -48,7 +48,11 @@ func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 				log.Println("failed to create exporter file for metrics: ", err)
 			}
 		}
-		consoleExporter, err = stdoutmetric.New(stdoutmetric.WithPrettyPrint(), stdoutmetric.WithWriter(file))
+		consoleExporter, err = stdoutmetric.New(
+			stdoutmetric.WithPrettyPrint(),
+			stdoutmetric.WithWriter(file),
+			stdoutmetric.WithTemporalitySelector(deltaSelector),
+		)
 		if err != nil {
 			log.Println("failed to create debug console exporter for metrics: ", err)
 		}
@@ -121,24 +125,22 @@ func (t *Metrics) initMetrics(ctx context.Context, c *Config) error {
 	}
 
 	if c.debug {
-		MeterProvider = *metric.NewMeterProvider(
+		c.Mp = metric.NewMeterProvider(
 			metric.WithReader(metric.NewPeriodicReader(exp, metric.WithInterval(10*time.Second))),
 			metric.WithReader(metric.NewPeriodicReader(consoleExporter, metric.WithInterval(10*time.Second))),
 			metric.WithResource(resources))
 	} else {
-		MeterProvider = *metric.NewMeterProvider(
+		c.Mp = metric.NewMeterProvider(
 			metric.WithReader(metric.NewPeriodicReader(exp, metric.WithInterval(10*time.Second))),
 			metric.WithResource(resources))
 	}
 
-	c.Mp = &MeterProvider
-	
-	if otel.GetMeterProvider() == nil {
-        otel.SetMeterProvider(c.Mp)
-    }
+	MeterProvider = c.Mp
+	// Set the global meter provider, overridding any previous values.
+	otel.SetMeterProvider(c.Mp)
 
 	if !c.pauseDefaultMetrics {
-		err := runtimemetrics.Start(runtimemetrics.WithMeterProvider(&MeterProvider))
+		err := runtimemetrics.Start(runtimemetrics.WithMeterProvider(MeterProvider))
 		if err != nil {
 			log.Println("failed to start runtime metrics:", err)
 		}
@@ -235,7 +237,7 @@ func (t *Metrics) Initialize() {
 	for _, gauge := range t.gauges {
 		observables = append(observables, gauge)
 	}
-	
+
 	// Register a single callback for all gauges
 	_, err := meter.RegisterCallback(t.collectMetrics, observables...)
 	if err != nil {
@@ -244,7 +246,7 @@ func (t *Metrics) Initialize() {
 }
 
 func (t *Metrics) collectMetrics(ctx context.Context, observer api.Observer) error {
-    var ms runtime.MemStats
+	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms)
 
 	observer.ObserveFloat64(t.gauges["num_cpu"], float64(runtime.NumCPU()))
@@ -299,4 +301,19 @@ func (t *Metrics) collectMetrics(ctx context.Context, observer api.Observer) err
 		}
 	}
 	return nil
+}
+
+func deltaSelector(kind metric.InstrumentKind) metricdata.Temporality {
+	switch kind {
+	case metric.InstrumentKindCounter,
+		metric.InstrumentKindGauge,
+		metric.InstrumentKindHistogram,
+		metric.InstrumentKindObservableGauge,
+		metric.InstrumentKindObservableCounter:
+		return metricdata.DeltaTemporality
+	case metric.InstrumentKindUpDownCounter,
+		metric.InstrumentKindObservableUpDownCounter:
+		return metricdata.CumulativeTemporality
+	}
+	panic("unknown instrument kind")
 }

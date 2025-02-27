@@ -11,6 +11,8 @@ import (
 	"github.com/middleware-labs/golang-apm/tracker"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	"go.opentelemetry.io/otel/attribute"
+
 )
 
 const MWTraceID = "traceId"
@@ -23,6 +25,7 @@ func newResource(config *tracker.Config) *resource.Resource {
 		semconv.SchemaURL,
 		semconv.ServiceName(config.ServiceName),
 		semconv.HostName(hostName),
+		attribute.String("mw.account_key", config.AccessToken),
 	)
 }
 

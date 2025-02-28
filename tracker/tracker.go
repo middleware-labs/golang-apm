@@ -99,6 +99,7 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 	
 		),
 	)
+	// Quick Question, how is this error supposed to be handled?
 	
 	for key, value := range c.customResourceAttributes {
 		switch v := value.(type) {
@@ -107,21 +108,21 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 				attribute.String(key, v),
 			))
 			if err != nil {
-				log.Println("failed to create resource: %v", err)
+				log.Printf("failed to create resource: %v", err)
 			}
 		case bool:
 			res, err = resource.Merge(res, resource.NewSchemaless(
 				attribute.Bool(key, v),
 			))
 			if err != nil {
-				log.Println("failed to create resource: %v", err)
+				log.Printf("failed to create resource: %v", err)
 			}
 		case int:
 			res, err = resource.Merge(res, resource.NewSchemaless(
 				attribute.Int(key, v),
 			))
 			if err != nil {
-				log.Println("failed to create resource: %v", err)
+				log.Printf("failed to create resource: %v", err)
 			}
 
 		case int64:
@@ -129,14 +130,14 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 				attribute.Int64(key, v),
 			))
 			if err != nil {
-				log.Println("failed to create resource: %v", err)
+				log.Printf("failed to create resource: %v", err)
 			}
 		case float64:
 			res, err = resource.Merge(res, resource.NewSchemaless(
 				attribute.Float64(key, v),
 			))
 			if err != nil {
-				log.Println("failed to create resource: %v", err)
+				log.Printf("failed to create resource: %v", err)
 			}
 
 		case float32:
@@ -144,7 +145,7 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 				attribute.Float64(key, float64(v)),
 			))
 			if err != nil {
-				log.Println("failed to create resource: %v", err)
+				log.Printf("failed to create resource: %v", err)
 			}
 
 		case []string:
@@ -153,7 +154,7 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 					attribute.String(key, s),
 				))
 				if err != nil {
-					log.Println("failed to create resource: %v", err)
+					log.Printf("failed to create resource: %v", err)
 				}
 			}
 		case []int:
@@ -162,7 +163,7 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 					attribute.Int(key, i),
 				))
 				if err != nil {
-					log.Println("failed to create resource: %v", err)
+					log.Printf("failed to create resource: %v", err)
 				}
 			}
 		case []float64:
@@ -171,7 +172,7 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 					attribute.Float64(key, f),
 				))
 				if err != nil {
-					log.Println("failed to create resource: %v", err)
+					log.Printf("failed to create resource: %v", err)
 				}
 			}
 		default:
@@ -193,7 +194,7 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 				attribute.String(key, value),
 			))
 			if err != nil {
-				log.Println("failed to create resource: %v", err)
+				log.Printf("failed to create resource: %v", err)
 			}
 		}
 	}

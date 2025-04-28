@@ -61,7 +61,7 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 	attributes := []attribute.KeyValue{
 		attribute.String("service.name", c.ServiceName),
 		attribute.String("service.name", c.ServiceName),
-		attribute.String("library.language", "go"),
+		attribute.String("telemetry.sdk.language", "go"),
 		attribute.Bool("mw_agent", true),
 		attribute.String("project.name", c.projectName),
 		attribute.String("mw.app.lang", "go"),

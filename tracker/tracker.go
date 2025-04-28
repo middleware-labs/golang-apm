@@ -91,7 +91,7 @@ func NewTracerProviderCtx(ctx context.Context, c *Config, serviceName string) *t
 	res, err := resource.New(context.Background(),
 		resource.WithAttributes(
 			attribute.String("service.name", serviceName),
-			attribute.String("library.language", "go"),
+			attribute.String("telemetry.sdk.language", "go"),
 			attribute.Bool("mw_agent", true),
 			attribute.String("project.name", c.projectName),
 			attribute.String("mw.account_key", c.AccessToken),

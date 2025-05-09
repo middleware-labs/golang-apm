@@ -111,6 +111,9 @@ func (t *Traces) initTraces(ctx context.Context, c *Config) error {
 		}
 	}
 
+	// Adding VCS information to the resource attributes
+	attributes = addVCSAttributes(attributes)
+	
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(

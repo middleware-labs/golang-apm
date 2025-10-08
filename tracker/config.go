@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-
 	"github.com/grafana/pyroscope-go"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -65,8 +64,6 @@ type Config struct {
 
 	target string
 
-	LogHost string
-
 	fluentHost string
 
 	isServerless string
@@ -100,7 +97,6 @@ func newConfig(opts ...Options) *Config {
 	c.pauseTraces = false
 	c.pauseProfiling = false
 	c.fluentHost = "localhost"
-	c.LogHost = "localhost"
 	profilingServerUrl := os.Getenv("MW_PROFILING_SERVER_URL")
 	MW_AGENT_SERVICE := os.Getenv("MW_AGENT_SERVICE")
 	authUrl := os.Getenv("MW_AUTH_URL")
@@ -242,9 +238,6 @@ func newConfig(opts ...Options) *Config {
 	}
 
 	c.Host = getHostValue("MW_AGENT_SERVICE", c.target)
-	if(MW_AGENT_SERVICE != ""){
-		c.LogHost = MW_AGENT_SERVICE
-	}
 
 	if c.projectName == "" {
 		if v, ok := c.settings["projectName"]; ok {
@@ -337,4 +330,3 @@ func getHostValue(key, defaultValue string) string {
 	}
 	return value + ":9319"
 }
-

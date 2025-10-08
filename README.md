@@ -28,10 +28,10 @@ go track.Track(
 
 | Logger                         | Version | Minimal go version |
 |--------------------------------|---------|--------------------|
-| [mwotelslog](https://github.com/open-telemetry/opentelemetry-go-contrib/tree/main/bridges/otelslog)       | v0.2.0  | 1.21               |
-| [mwotelzap](https://github.com/open-telemetry/opentelemetry-go-contrib/tree/main/bridges/otelzap)         | v0.0.1  | 1.20               |
+| [mwotelslog](https://github.com/open-telemetry/opentelemetry-go-contrib/tree/main/bridges/otelslog)       | v0.13.0  | 1.24.0               |
+| [mwotelzap](https://github.com/open-telemetry/opentelemetry-go-contrib/tree/main/bridges/otelzap)         | v0.13.0  | 1.24.0               |
 | [mwotelzerolog](mwotelzerolog) | v0.0.1  | 1.20               |
-| [mwotellogrus](https://github.com/open-telemetry/opentelemetry-go-contrib/tree/main/bridges/otellogrus)   | v0.2.0  | 1.21               |
+| [mwotellogrus](https://github.com/open-telemetry/opentelemetry-go-contrib/tree/main/bridges/otellogrus)   | v0.13.0  | 1.24.0               |
 
 ### `log/slog`
 ```go

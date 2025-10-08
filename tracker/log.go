@@ -1,7 +1,6 @@
 package tracker
 
 import (
-	"net/url"
 	"context"
 	"fmt"
 	"log"
@@ -11,7 +10,7 @@ import (
 	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
 	"go.opentelemetry.io/otel/propagation"
 	otellog "go.opentelemetry.io/otel/sdk/log"
@@ -24,21 +23,14 @@ var LogProvider otellog.LoggerProvider
 
 func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 
-	var host string
+	collectorURL := c.Host
 
-	if c.isServerless == "0" {
-		host, _ = url.JoinPath("http://"+c.LogHost+":9320", "v1", "logs")
-
-
-	} else {
-		host, _ = url.JoinPath("https://"+c.Host, "v1", "logs")
-	}
-
-	exp, err := otlploghttp.New(ctx,
-		otlploghttp.WithEndpointURL(host),
+	exp, err := otlploggrpc.New(ctx,
+		otlploggrpc.WithEndpoint(collectorURL),
 		// Gzip Compression
-		otlploghttp.WithCompression(otlploghttp.GzipCompression),
+		otlploggrpc.WithCompressor("gzip"),
 	)
+
 	if err != nil {
 		log.Println("failed to create exporter for logs: ", err)
 	}
@@ -120,7 +112,7 @@ func (t *Logs) initLogs(ctx context.Context, c *Config) error {
 	resources, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
-			attributes...
+			attributes...,
 		),
 	)
 
